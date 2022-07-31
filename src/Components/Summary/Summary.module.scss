@@ -1,0 +1,11 @@
+.summary {
+  width: 70%;
+
+  & .description {
+    padding-top: 0.5em;
+
+    & div:nth-child(n+2) {
+      padding-top: 1em;
+    }
+  }
+}

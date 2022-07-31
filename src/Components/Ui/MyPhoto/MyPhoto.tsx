@@ -17,7 +17,6 @@ const MyPhoto = () => {
                 </filter>
             </svg>
         </>
-
     )
 }
 

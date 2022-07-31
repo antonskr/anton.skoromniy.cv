@@ -1,10 +1,9 @@
-import React, {ReactNode, SVGProps} from "react";
+import React from "react";
 import styles from './Contact.module.scss'
 
 import { FaLinkedin, FaPhone, FaMailBulk, FaCity } from 'react-icons/fa';
 
 import {IconType} from "react-icons";
-
 
 enum contactTypes {
     city = 'city',
@@ -23,6 +22,7 @@ interface itemI {
 const ContactItem = ({icon, contact_value,link, type}: itemI):JSX.Element => {
 
     const Icon = icon as IconType;
+    const IconColor:string = '#008CFF'
 
     return (
         <div className={styles.item}>
@@ -31,7 +31,7 @@ const ContactItem = ({icon, contact_value,link, type}: itemI):JSX.Element => {
                     (type === 'city' || type === 'linkedin') &&
                     <a href={link} target={'_blank'} rel={'noopener noreferrer'}>
                         <div className={styles.icon}>
-                            <Icon size={20} color={'#008CFF'}/>
+                            <Icon size={20} color={IconColor}/>
                         </div>
                         <span>{contact_value}</span>
                     </a>
@@ -40,7 +40,7 @@ const ContactItem = ({icon, contact_value,link, type}: itemI):JSX.Element => {
                     type === 'phone' &&
                     <a href={`tel:${contact_value}`}>
                         <div className={styles.icon}>
-                            <Icon size={20} color={'#008CFF'}/>
+                            <Icon size={20} color={IconColor}/>
                         </div>
                         <span>{contact_value}</span>
                     </a>
@@ -49,7 +49,7 @@ const ContactItem = ({icon, contact_value,link, type}: itemI):JSX.Element => {
                     type === 'mail' &&
                     <a href={`mailto:${contact_value}`}>
                         <div className={styles.icon}>
-                            <Icon size={20} color={'#008CFF'}/>
+                            <Icon size={20} color={IconColor}/>
                         </div>
                         <span>{contact_value}</span>
                     </a>

@@ -1,0 +1,8 @@
+.titleWithLine {
+  position: relative;
+  border-bottom: 3px solid #000;
+
+  & h2 {
+    text-transform: uppercase;
+  }
+}
