@@ -3,8 +3,8 @@
 :root {
   --vh: 1vh;
   --content-vertical-paddings: 100px;
-  --content-horizontal-paddings: 20px;
-  --content-max-width: 1400px;
+  --content-horizontal-paddings: 60px;
+  --content-max-width: 1000px;
 }
 
 body {
@@ -48,6 +48,7 @@ h1 {
   padding: var(--content-vertical-paddings) var(--content-horizontal-paddings);
   display: flex;
   flex-direction: column;
+  background: #FAFAFAFA;
 }
 
 .wrapper {

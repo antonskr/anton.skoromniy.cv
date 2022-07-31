@@ -1,0 +1,10 @@
+.photo {
+
+  & > img {
+    width: 9em;
+    height: 9em;
+    border-radius: 0.5em;
+    object-fit: cover;
+  }
+
+}

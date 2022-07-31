@@ -1,8 +1,8 @@
 .basicInfo {
+  display: flex;
+  justify-content: space-between;
 
   & .basic {
-    width: 40%;
-    border: 1px solid;
 
     & .fullName {
       text-transform: uppercase;

@@ -1,6 +1,7 @@
 import React from "react";
 import styles from './Basickinfo.module.scss';
 import Contacts from "../Contacts/Contacts";
+import MyPhoto from "../Ui/MyPhoto/MyPhoto";
 
 const BasicInfo = ():JSX.Element => {
     return (
@@ -14,6 +15,7 @@ const BasicInfo = ():JSX.Element => {
                 </p>
                 <Contacts />
             </div>
+            <MyPhoto/>
         </div>
     )
 }
