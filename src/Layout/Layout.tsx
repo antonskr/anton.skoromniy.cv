@@ -1,16 +1,13 @@
 import React, { ReactNode } from "react";
-import '../App.scss';
 
-interface Layout {
+interface LayoutProps {
     children: ReactNode
 }
 
-const Layout = ({children}: {children: ReactNode}) => {
+const Layout = ({children}: LayoutProps) => {
     return (
         <div className={'container'}>
-            <div className={'wrapper'}>
-
-            </div>
+            { children }
         </div>
     )
 }

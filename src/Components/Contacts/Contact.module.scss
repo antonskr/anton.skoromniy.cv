@@ -1,0 +1,42 @@
+.item {
+  display: flex;
+  transition: 200ms;
+  height: 1em;
+
+
+  & .contactValue {
+    font-size: 0.8em;
+
+    & a {
+      display: flex;
+      font-weight: 400;
+      white-space: nowrap;
+      transition: 200ms;
+
+      & .icon {
+        transition: 200ms;
+      }
+
+      & > span {
+        padding-left: 0.5em;
+        align-self: center;
+      }
+
+      &:hover {
+        color: #008CFF;
+
+        & .icon {
+          transform: scale(1.1);
+        }
+      }
+    }
+  }
+}
+
+.contacts {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 0.3em;
+  padding-top: 0.5em;
+}

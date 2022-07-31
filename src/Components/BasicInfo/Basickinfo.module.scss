@@ -1,0 +1,15 @@
+.basicInfo {
+
+  & .basic {
+    width: 40%;
+    border: 1px solid;
+
+    & .fullName {
+      text-transform: uppercase;
+    }
+
+    & .description {
+      font-weight: 700;
+    }
+  }
+}

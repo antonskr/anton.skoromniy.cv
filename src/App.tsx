@@ -1,14 +1,14 @@
 import React from 'react';
 import './App.scss';
+
 import Layout from './Layout/Layout';
+import BasicInfo from "./Components/BasicInfo/BasicInfo";
 
 function App() {
 
   return (
     <Layout>
-      <div>
-          hello
-      </div>
+        <BasicInfo />
     </Layout>
   );
 }
