@@ -17,7 +17,7 @@ const SkillCard = ({ category, skills }: ISkillsCard) => {
                 {
                     skills.map(_el => {
                         return (
-                            <p>{_el}</p>
+                            <p key={_el}>{_el}</p>
                         )
                     })
                 }

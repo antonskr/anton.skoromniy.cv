@@ -5,7 +5,7 @@ import Layout from './Layout/Layout';
 import BasicInfo from "./Components/BasicInfo/BasicInfo";
 import Column from "./Column/Column";
 
-function App() {
+function App():JSX.Element {
   return (
     <Layout>
         <BasicInfo />

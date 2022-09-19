@@ -1,0 +1,44 @@
+@import '../../variables';
+.languages {
+  margin-top: 1em;
+
+  &__container {
+    display: flex;
+    align-items: center;
+    padding: 0.5em 0;
+    border-bottom: 1px dashed #a9a9a9;
+
+    &__textGroup {
+      flex-grow: 1;
+
+      &__lang {
+        font-size: var(--text-size-small-lg);
+        line-height: var(--text-size-small-lh);
+        font-weight: 700;
+      }
+
+      &__level {
+        font-size: var(--text-size-mini);
+        line-height: var(--text-size-mini-lh);
+        color: $lightened-black-color;
+      }
+    }
+  }
+}
+
+.rating {
+  display: flex;
+  gap: 4px;
+
+  &__circle {
+    width: 16px;
+    height: 16px;
+    border-radius: 100%;
+    background: rgb(228, 228, 228);
+    transition: 300ms;
+
+    &.filled {
+      background: $blue-color;
+    }
+  }
+}
