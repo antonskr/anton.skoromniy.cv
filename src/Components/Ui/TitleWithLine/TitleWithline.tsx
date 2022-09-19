@@ -1,5 +1,6 @@
 import React from 'react';
 import styles from './TitleWithLine.module.scss';
+import cn from 'classnames';
 
 interface titleWithLineProps {
     title: string
@@ -7,7 +8,7 @@ interface titleWithLineProps {
 
 const TitleWithLine = ({title}: titleWithLineProps):JSX.Element => {
     return (
-        <div className={styles.titleWithLine}>
+        <div className={cn(styles.titleWithLine, 'titleWithLine')}>
             <h2>{ title }</h2>
         </div>
     )

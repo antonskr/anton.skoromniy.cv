@@ -1,6 +1,20 @@
+@import "../../../variables";
+@import "../../../mixins";
 .titleWithLine {
+  $border-height: 3px;
   position: relative;
-  border-bottom: 3px solid #000;
+  border-bottom: $border-height solid #000;
+
+  &::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 3px;
+    left: 0;
+    bottom: -$border-height;
+    background-color: $blue-color;
+    transition: 300ms;
+  }
 
   & h2 {
     text-transform: uppercase;

@@ -1,0 +1,5 @@
+@mixin title-hover {
+  &:hover :global(.titleWithLine):before {
+    width: 100%;
+  }
+}

@@ -1,4 +1,7 @@
+@import "../../mixins";
 .summary {
+  @include title-hover;
+
   & .description {
     padding-top: 0.5em;
 

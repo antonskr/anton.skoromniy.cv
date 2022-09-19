@@ -1,6 +1,8 @@
 @import '../../variables';
+@import '../../mixins';
 .languages {
   margin-top: 1em;
+  @include title-hover;
 
   &__container {
     display: flex;

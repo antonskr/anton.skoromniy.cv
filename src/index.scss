@@ -23,6 +23,12 @@
   --text-size-mini-lh: 1.2307;
 }
 
+@mixin rtl($property) {
+    :hover#{$property}:before {
+      width: 100%;
+    }
+}
+
 body {
   margin: 0;
   padding: 0;
