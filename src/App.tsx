@@ -1,17 +1,15 @@
 import React from 'react';
 import './App.scss';
 
-
 import Layout from './Layout/Layout';
 import BasicInfo from "./Components/BasicInfo/BasicInfo";
-import Summary from "./Components/Summary/Summary";
+import Column from "./Column/Column";
 
 function App() {
-
   return (
     <Layout>
         <BasicInfo />
-        <Summary />
+        <Column />
     </Layout>
   );
 }

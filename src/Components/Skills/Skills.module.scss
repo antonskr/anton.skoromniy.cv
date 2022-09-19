@@ -1,0 +1,30 @@
+@import "../../variables";
+.skills {
+
+}
+
+.skillsCard {
+  padding: 0.5em 0;
+  border-bottom: 1px dashed #a9a9a9;
+
+  &__category {
+    line-height: var(--text-lh);
+    color: $blue-color;
+    margin-bottom: 0.5em;
+
+  }
+
+  &__skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    & p {
+      font-size: var(--text-size-small);
+      font-weight: 700;
+      color: $lightened-black-color;
+      border-bottom: 1px solid #a9a9a9;
+      padding: 5px 8px;
+    }
+  }
+}
