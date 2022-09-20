@@ -16,7 +16,7 @@ const BasicInfo = ():JSX.Element => {
                 </p>
                 <Contacts />
             </div>
-            <MyPhoto/>
+          <MyPhoto />
         </div>
     )
 }
