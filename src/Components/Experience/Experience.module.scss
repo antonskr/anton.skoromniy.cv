@@ -1,6 +1,14 @@
 @import "../../variables";
 @import "../../mixins";
 
+@mixin a-hover-blue {
+  transition: 300ms;
+
+  &:hover {
+    color: $blue-color;
+  }
+}
+
 .experience {
   margin-top: 1.5em;
   @include title-hover;
@@ -10,6 +18,7 @@
   padding: 0.5em 0;
 
   &__position {
+    font-size: var(--text-size);
     line-height: var(--text-lh);
   }
 
@@ -45,10 +54,13 @@
       &__link {
         display: flex;
         align-items: center;
+        color: $lightened-black-color;
+        @include a-hover-blue;
 
         &__locationIcon {
           display: flex;
           padding-right: 0.5em;
+          color: $lightened-black-color;
         }
       }
     }
@@ -59,6 +71,13 @@
     font-size: var(--text-size-small-lg);
     line-height: var(--text-size-small-lg-lh);
     color: $lightened-black-color;
+
+    & a {
+      position: relative;
+      color: $lightened-black-color;
+      text-decoration: underline;
+      @include a-hover-blue;
+    }
   }
 
   &__technologies {

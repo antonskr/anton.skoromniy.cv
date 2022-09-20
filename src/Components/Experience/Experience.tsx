@@ -69,7 +69,7 @@ const Experience = (): JSX.Element => {
                 date_to='05/2021'
                 location_name='Kharkiv, Ukraine'
                 location_link='/'
-                description={`Developed the websites: <a href='/'>WDE3D</a>, <a href='/'>Zagroza-agency<a/> and others projects.`}
+                description={`Developed the websites: <a href='/'>WDE3D</a>, <a href='/'>Zagroza-agency</a> and others projects.`}
                 technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js.'
                 activity={['adsasdasd', 'sadasdsad', 'sadsadas']}
             />
@@ -80,7 +80,7 @@ const Experience = (): JSX.Element => {
                 date_to='05/2021'
                 location_name='Kharkiv, Ukraine'
                 location_link='/'
-                description={`Developed the websites: <a href='/'>WDE3D</a>, <a href='/'>Zagroza-agency<a/> and others projects.`}
+                description={`Developed the websites: <a href='/'>WDE3D</a>, <a href='/'>Zagroza-agency</a> and others projects.`}
                 technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js.'
                 activity={['adsasdasd', 'sadasdsad', 'sadsadas']}
             />
@@ -91,7 +91,7 @@ const Experience = (): JSX.Element => {
                 date_to='05/2021'
                 location_name='Kharkiv, Ukraine'
                 location_link='/'
-                description={`Developed the websites: <a href='/'>WDE3D</a>, <a href='/'>Zagroza-agency<a/> and others projects.`}
+                description={`Developed the websites: <a href='/'>WDE3D</a>, <a href='/'>Zagroza-agency</a> and others projects.`}
                 technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js.'
                 activity={['adsasdasd', 'sadasdsad', 'sadsadas']}
             />
