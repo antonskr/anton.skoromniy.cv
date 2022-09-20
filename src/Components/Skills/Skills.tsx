@@ -31,11 +31,11 @@ const Skills = ():JSX.Element => {
         <div className={styles.skills}>
             <TitleWithLine title='Skills'/>
             <SkillCard
-                category={'Server side'}
+                category={'Client-side'}
                 skills={['HTML', 'CSS','SASS', 'JavaScript', 'React', 'NextJs', 'TypeScript']}
             />
             <SkillCard
-                category={'Client-side'}
+                category={'Server-side'}
                 skills={['Directus', 'NodeJs', 'Websockets']}
             />
             <SkillCard

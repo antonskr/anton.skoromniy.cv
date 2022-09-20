@@ -1,3 +1,15 @@
+@mixin media-mobile-sm {
+  @media screen and (max-width: 567px) {
+    @content;
+  }
+}
+
+@mixin media-mobile {
+  @media screen and (max-width: 768px) {
+    @content;
+  }
+}
+
 @mixin title-hover {
   &:hover :global(.titleWithLine):before {
     transform: rotateY(0deg);

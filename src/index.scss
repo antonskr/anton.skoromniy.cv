@@ -1,4 +1,5 @@
 @import "variables";
+@import "mixins";
 
 :root {
   // ----- indents -----
@@ -21,12 +22,13 @@
   --text-size-small-lg-lh: 1.2666;
   --text-size-small-lh: 1.21;
   --text-size-mini-lh: 1.2307;
-}
 
-@mixin rtl($property) {
-    :hover#{$property}:before {
-      width: 100%;
-    }
+  @include media-mobile {
+    --content-vertical-paddings: 50px;
+    --content-horizontal-paddings: 20px;
+
+    --text-big-size: 1.5em;
+  }
 }
 
 body {

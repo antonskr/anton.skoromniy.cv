@@ -1,8 +1,8 @@
+@import "../../mixins";
 .item {
   display: flex;
   transition: 200ms;
   height: 1em;
-
 
   & .contactValue {
     font-size: 0.8em;
@@ -39,4 +39,8 @@
   grid-template-columns: 1fr 1fr;
   grid-gap: 0.3em;
   padding-top: 0.5em;
+
+  @include media-mobile {
+      grid-template-columns: 1fr;
+  }
 }

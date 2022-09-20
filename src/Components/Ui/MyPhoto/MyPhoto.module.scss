@@ -1,3 +1,5 @@
+@import "../../../mixins";
+
 .photo {
   position: relative;
   width: 9em;
@@ -11,11 +13,9 @@
   transition: 200ms;
   transform-style: preserve-3d;
 
-  &__verge {
-    width: 9em;
-    height: 9em;
-    transform: rotateY(-90deg) translateZ(100px);
-    background-color: #008cff;
+  @include media-mobile-sm {
+    width: 100%;
+    margin: 0 auto;
   }
 
   @keyframes move {

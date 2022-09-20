@@ -1,8 +1,20 @@
+@import "../../mixins";
+
 .basicInfo {
   display: flex;
   justify-content: space-between;
 
+  @include media-mobile-sm {
+    flex-direction: column-reverse;
+
+    & .basic {
+      margin-top: 1em;
+    }
+  }
+
   & .basic {
+    flex-grow: 1;
+    padding-right: 1em;
 
     & .fullName {
       text-transform: uppercase;

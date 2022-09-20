@@ -3,6 +3,10 @@
 
 .skills {
   @include title-hover;
+
+  @include media-mobile {
+    margin-top: 1.5em;
+  };
 }
 
 .skillsCard {

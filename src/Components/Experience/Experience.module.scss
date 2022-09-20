@@ -1,0 +1,98 @@
+@import "../../variables";
+@import "../../mixins";
+
+.experience {
+  margin-top: 1.5em;
+  @include title-hover;
+}
+
+.card {
+  padding: 0.5em 0;
+
+  &__position {
+    line-height: var(--text-lh);
+  }
+
+  &__companyName {
+    font-size: var(--text-size-small-lg);
+    line-height: var(--text-size-small-lg-lh);
+    font-weight: 700;
+    color: $blue-color;
+    margin-top: 0.2em;
+  }
+
+  &__dateAndLocation {
+    display: flex;
+    font-size: var(--text-size-small-lg);
+    line-height: var(--text-size-small-lg-lh);
+    font-weight: 400;
+    color: $lightened-black-color;
+    margin-top: 0.2em;
+
+    & .dateAndLocation__date {
+      display: flex;
+      flex-wrap: wrap;
+      padding-right: 2em;
+      white-space: pre-wrap;
+
+      &__dateIcon {
+        display: flex;
+        padding-right: 0.5em;
+      }
+    }
+
+    & .dateAndLocation__location {
+      &__link {
+        display: flex;
+        align-items: center;
+
+        &__locationIcon {
+          display: flex;
+          padding-right: 0.5em;
+        }
+      }
+    }
+  }
+
+  &__description {
+    margin-top: 0.2em;
+    font-size: var(--text-size-small-lg);
+    line-height: var(--text-size-small-lg-lh);
+    color: $lightened-black-color;
+  }
+
+  &__technologies {
+    font-size: var(--text-size-small-lg);
+    line-height: var(--text-size-small-lg-lh);
+    color: $lightened-black-color;
+
+    & span {
+      font-weight: 700;
+    }
+  }
+
+  &__activity {
+    margin-top: 0.2em;
+    font-size: var(--text-size-small-lg);
+    line-height: var(--text-size-small-lg-lh);
+    color: $lightened-black-color;
+    padding-left: 2px;
+
+    & div {
+      position: relative;
+      padding-left: 1em;
+
+      &:before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 4px;
+        border-radius: 100%;
+        background-color: $lightened-black-color;;
+      }
+    }
+  }
+}

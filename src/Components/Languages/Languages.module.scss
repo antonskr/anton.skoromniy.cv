@@ -1,7 +1,7 @@
 @import '../../variables';
 @import '../../mixins';
 .languages {
-  margin-top: 1em;
+  margin-top: 1.5em;
   @include title-hover;
 
   &__container {
