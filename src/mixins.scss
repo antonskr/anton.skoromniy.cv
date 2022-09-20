@@ -1,5 +1,5 @@
 @mixin title-hover {
   &:hover :global(.titleWithLine):before {
-    width: 100%;
+    transform: rotateY(0deg);
   }
 }

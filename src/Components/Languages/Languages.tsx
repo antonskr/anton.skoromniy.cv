@@ -4,29 +4,29 @@ import cn from 'classnames';
 import {useEffect, useRef} from "react";
 
 interface IRating {
-    number:  number,
+    rating: number
     elems: number[]
 }
 
 interface Ilanguage {
     language: string,
     level: string,
-    rating: 1 | 2 | 3 | 4 | 5
+    rating: number
 }
 
-const Rating = ({ number, elems }: IRating) => {
+const Rating = ({ rating, elems }: IRating) => {
     const ratingRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         let ratingElems = ratingRef.current?.querySelectorAll(`.${styles.rating__circle}`)
         ratingElems?.forEach((_el, idx) => {
-            if (idx < number) {
+            if (idx < rating) {
                 setTimeout(() => {
                     _el.classList.add(styles.filled)
-                },  100 * idx )
+                },  100 * idx)
             }
         })
-    }, [number])
+    }, [rating])
 
     return (
         <div className={styles.rating} ref={ratingRef}>
@@ -42,7 +42,7 @@ const Rating = ({ number, elems }: IRating) => {
 }
 
 Rating.defaultProps = {
-    number: 0,
+    rating: 0,
     elems: [1, 2, 3, 4, 5]
 }
 
@@ -53,7 +53,7 @@ const Language = ({ language, level, rating }: Ilanguage) => {
               <p className={styles.languages__container__textGroup__lang}>{ language }</p>
               <p className={styles.languages__container__textGroup__level}>{ level }</p>
           </div>
-          <Rating number={rating}/>
+          <Rating rating={rating}/>
       </div>
   )
 }
@@ -63,7 +63,7 @@ const Languages = () => {
         <div className={styles.languages}>
             <TitleWithLine title={'Languages'}/>
             <Language language='Ukrainian' level='Native' rating={5} />
-            <Language language='Eanglish' level='Pre-intermediate' rating={3} />
+            <Language language='English' level='Pre-intermediate' rating={3} />
             <Language language='Russian' level='Proficient' rating={5} />
         </div>
     )

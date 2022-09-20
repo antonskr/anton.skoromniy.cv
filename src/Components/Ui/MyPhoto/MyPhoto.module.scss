@@ -1,5 +1,4 @@
 .photo {
-
   position: relative;
   width: 9em;
   height: 9em;
@@ -10,6 +9,14 @@
   animation-duration: 1s;
   animation-fill-mode: forwards;
   transition: 200ms;
+  transform-style: preserve-3d;
+
+  &__verge {
+    width: 9em;
+    height: 9em;
+    transform: rotateY(-90deg) translateZ(100px);
+    background-color: #008cff;
+  }
 
   @keyframes move {
     0% {

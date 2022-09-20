@@ -7,7 +7,9 @@ const MyPhoto = () => {
         <>
             <div className={styles.photo}>
                 <img src={Photo} alt="photo"/>
+                <div className={styles.photo__verge}></div>
             </div>
+
             <svg width={0} height={0}>
                 <filter id={'svg_filter'}>
                     <feTurbulence baseFrequency={0} numOctaves={1}>
