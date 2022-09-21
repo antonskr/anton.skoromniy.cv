@@ -1,17 +1,17 @@
 {
   "files": {
-    "main.css": "/anton.skoromniy.cv/static/css/main.187eb989.css",
-    "main.js": "/anton.skoromniy.cv/static/js/main.b0d8151d.js",
+    "main.css": "/anton.skoromniy.cv/static/css/main.da843d00.css",
+    "main.js": "/anton.skoromniy.cv/static/js/main.353d6e7c.js",
     "static/media/Myphoto.jpg": "/anton.skoromniy.cv/static/media/Myphoto.a3ed088d613555a543ea.jpg",
     "static/media/Rubik-Bold.woff": "/anton.skoromniy.cv/static/media/Rubik-Bold.8c52a6af6119986f63c1.woff",
     "static/media/Rubik-Medium.woff": "/anton.skoromniy.cv/static/media/Rubik-Medium.0674a697a179ca85b055.woff",
     "static/media/Rubik-Regular.woff": "/anton.skoromniy.cv/static/media/Rubik-Regular.0377147251f93f0741e1.woff",
     "index.html": "/anton.skoromniy.cv/index.html",
-    "main.187eb989.css.map": "/anton.skoromniy.cv/static/css/main.187eb989.css.map",
-    "main.b0d8151d.js.map": "/anton.skoromniy.cv/static/js/main.b0d8151d.js.map"
+    "main.da843d00.css.map": "/anton.skoromniy.cv/static/css/main.da843d00.css.map",
+    "main.353d6e7c.js.map": "/anton.skoromniy.cv/static/js/main.353d6e7c.js.map"
   },
   "entrypoints": [
-    "static/css/main.187eb989.css",
-    "static/js/main.b0d8151d.js"
+    "static/css/main.da843d00.css",
+    "static/js/main.353d6e7c.js"
   ]
 }
