@@ -1,7 +1,7 @@
 import styles from './Languages.module.scss'
 import TitleWithLine from "../Ui/TitleWithLine/TitleWithline";
 import cn from 'classnames';
-import {useEffect, useRef} from "react";
+import { useEffect, useRef } from "react";
 
 interface IRating {
     rating: number
@@ -53,7 +53,7 @@ const Language = ({ language, level, rating }: Ilanguage) => {
               <p className={styles.languages__container__textGroup__lang}>{ language }</p>
               <p className={styles.languages__container__textGroup__level}>{ level }</p>
           </div>
-          <Rating rating={rating}/>
+          <Rating rating={ rating }/>
       </div>
   )
 }
@@ -62,9 +62,9 @@ const Languages = () => {
     return (
         <div className={styles.languages}>
             <TitleWithLine title={'Languages'}/>
-            <Language language='Ukrainian' level='Native' rating={5} />
-            <Language language='English' level='Pre-intermediate' rating={3} />
-            <Language language='Russian' level='Proficient' rating={5} />
+            <Language language='Ukrainian' level='Native' rating={ 5 } />
+            <Language language='English' level='Pre-intermediate' rating={ 3 } />
+            <Language language='Russian' level='Proficient' rating={ 5 } />
         </div>
     )
 }

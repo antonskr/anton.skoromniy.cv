@@ -1,7 +1,6 @@
 import styles from './Experience.module.scss'
 import TitleWithLine from "../Ui/TitleWithLine/TitleWithline";
 import { FaCalendarAlt, FaCity } from 'react-icons/fa';
-import OuterLink from "../OuterLink/OuterLink";
 
 interface IExperienceCardProps {
     position: string,
@@ -54,8 +53,6 @@ const ExperienceCard = ({...props}: IExperienceCardProps): JSX.Element => {
         </div>
     )
 }
-
-
 
 const Experience = (): JSX.Element => {
     return (

@@ -6,7 +6,6 @@ interface ISkillsCard {
     skills: string[]
 }
 
-
 const SkillCard = ({ category, skills }: ISkillsCard) => {
     return (
         <div className={styles.skillsCard}>
