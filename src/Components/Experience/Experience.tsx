@@ -1,8 +1,7 @@
 import styles from './Experience.module.scss'
 import TitleWithLine from "../Ui/TitleWithLine/TitleWithline";
-import {FaCalendarAlt, FaCity} from 'react-icons/fa';
-
-
+import { FaCalendarAlt, FaCity } from 'react-icons/fa';
+import OuterLink from "../OuterLink/OuterLink";
 
 interface IExperienceCardProps {
     position: string,
@@ -63,37 +62,37 @@ const Experience = (): JSX.Element => {
         <div className={styles.experience}>
             <TitleWithLine title='Experience'/>
             <ExperienceCard
-                position='Front End Developer'
+                position=' Middle Front End Developer'
                 companyName='ZAGROZA digital agency'
-                date_from='04/2021'
-                date_to='05/2021'
+                date_from='03/2022'
+                date_to='09/2022'
                 location_name='Kharkiv, Ukraine'
                 location_link='/'
-                description={`Developed the websites: <a href='/'>WDE3D</a>, <a href='/'>Zagroza-agency</a> and others projects.`}
+                description={`Developed the frontend for a volunteer platform - <a href='https://volunteering-ukraine.com' target='_blank' rel='noreferrer'>volunteering-ukraine</a>, <a href='https://milibris.dev.webvision360.com' target='_blank' rel='noreferrer'>Milibris</a> - Website for a company that improves digital publishing and implements distribution solutions.`}
                 technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js.'
-                activity={['adsasdasd', 'sadasdsad', 'sadsadas']}
+                activity={['Developed front end', 'Created the mobile version', 'Suggested ideas that have been implemented']}
             />
             <ExperienceCard
-                position='Front End Developer'
+                position='Junior Front End Developer'
                 companyName='ZAGROZA digital agency'
-                date_from='04/2021'
-                date_to='05/2021'
+                date_from='07/2021'
+                date_to='03/2022'
                 location_name='Kharkiv, Ukraine'
                 location_link='/'
-                description={`Developed the websites: <a href='/'>WDE3D</a>, <a href='/'>Zagroza-agency</a> and others projects.`}
-                technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js.'
-                activity={['adsasdasd', 'sadasdsad', 'sadsadas']}
+                description={`Developed the websites: <a href='https://wde3d.com' target='_blank' rel='noreferrer'>WDE3D</a>, <a href='https://zagroza.agency' target='_blank' rel='noreferrer'>Zagroza-agency</a> and others projects.`}
+                technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js, Docker, SASS.'
+                activity={['Created complex animations', 'Developed front end and some backend', 'Sending and validating files on server']}
             />
             <ExperienceCard
-                position='Front End Developer'
+                position='Trainee Front End Developer'
                 companyName='ZAGROZA digital agency'
                 date_from='04/2021'
-                date_to='05/2021'
+                date_to='07/2021'
                 location_name='Kharkiv, Ukraine'
                 location_link='/'
-                description={`Developed the websites: <a href='/'>WDE3D</a>, <a href='/'>Zagroza-agency</a> and others projects.`}
-                technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js.'
-                activity={['adsasdasd', 'sadasdsad', 'sadsadas']}
+                description={`Participated in the development of the <a href='https://promius.com.ua' target='_blank' rel='noreferrer'>Promius</a> website.`}
+                technologies='<span>Tehcnolgies used:</span> React, NextJS.'
+                activity={['Developed UI components for an existing project.']}
             />
         </div>
     )
