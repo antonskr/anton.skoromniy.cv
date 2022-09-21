@@ -17,6 +17,12 @@
     transform: rotateY(-90deg);
   }
 
+  &.titleWithLine_visible {
+    &::before {
+      transform: rotateY(0);
+    }
+  }
+
   & h2 {
     text-transform: uppercase;
   }
