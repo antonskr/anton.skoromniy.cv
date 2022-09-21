@@ -3,6 +3,7 @@ import Summary from "../Components/Summary/Summary";
 import Skills from "../Components/Skills/Skills";
 import Languages from "../Components/Languages/Languages";
 import Experience from "../Components/Experience/Experience";
+import Cube from "../Components/Ui/Cube/Cube";
 
 const Column = (): JSX.Element => {
     return (
@@ -14,6 +15,7 @@ const Column = (): JSX.Element => {
             <div>
                 <Skills />
                 <Languages />
+                <Cube />
             </div>
         </div>
     )
