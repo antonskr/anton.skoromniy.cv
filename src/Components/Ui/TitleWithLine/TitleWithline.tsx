@@ -1,7 +1,8 @@
-import React, {useEffect, useRef} from 'react';
+import React, { useEffect, useRef } from 'react';
 import styles from './TitleWithLine.module.scss';
 import cn from 'classnames';
 import { elementVisibilityCheck } from "../../../Helper";
+
 interface titleWithLineProps {
     title: string
 }
@@ -33,7 +34,6 @@ const TitleWithLine = ({title}: titleWithLineProps):JSX.Element => {
         const width = window.innerWidth
             || document.documentElement.clientWidth
             || document.body.clientWidth;
-
         return width <= 768;
     }
 
