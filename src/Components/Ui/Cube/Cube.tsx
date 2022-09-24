@@ -1,6 +1,7 @@
 import styles from "./Cube.module.scss";
 import cn from "classnames";
 import React, {MouseEventHandler, useEffect, useRef, useState} from "react";
+import Emergence from "../../Emergence/Emergence";
 
 
 interface IDirections {
@@ -15,6 +16,8 @@ interface IDirections {
 }
 
 const Cube = () => {
+    const [isVisible, setIsVisible] = useState(false);
+    const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const isMouseOnCube = useRef(false);
     const cubeRef = useRef<HTMLDivElement>(null);
     const directions: IDirections = {
@@ -48,37 +51,47 @@ const Cube = () => {
         return directions[keys[Math.floor(Math.random() * keys.length)]];
     };
 
-    const changeCubDirection = () => {
+    const changeCubDirection = (current_direction?: [number, number]) => {
         if (isMouseOnCube.current) {
             return;
         }
 
-        const direction = getRandomDirection(directions);
+        const direction = current_direction || getRandomDirection(directions);
         cubeRef.current?.style.setProperty('--cubeXRotate', direction[0] + "deg");
         cubeRef.current?.style.setProperty('--cubeYRotate', direction[1] + "deg");
     }
 
     useEffect(() => {
-        const interval = setInterval(changeCubDirection, 3000);
 
-        return () => clearInterval(interval);
-    }, [])
+        if(isVisible)
+        {
+            changeCubDirection(directions.top);
+            setTimeout(() =>
+            {
+                intervalRef.current = setInterval(changeCubDirection, 3000);
+            }, 800);
+        }
+
+        return () => clearInterval(intervalRef.current as NodeJS.Timeout);
+    }, [isVisible]);
 
     return (
-        <div className={styles.scene}>
-            <div className={styles.cube}
-                 /*onMouseMove={cubRotation}
-                 onTouchEnd={normalize}
-                 onMouseLeave={normalize}*/
-                 ref={cubeRef}>
-                <div className={cn(styles.cube__face, styles.cube__face_front)}>Frontend</div>
-                <div className={cn(styles.cube__face, styles.cube__face_back)}>Backend</div>
-                <div className={cn(styles.cube__face, styles.cube__face_right)}>JavaScript</div>
-                <div className={cn(styles.cube__face, styles.cube__face_left)}>CSS</div>
-                <div className={cn(styles.cube__face, styles.cube__face_top)}>HTMl</div>
-                <div className={cn(styles.cube__face, styles.cube__face_bottom)}>React</div>
+        <Emergence callbackFn={setIsVisible}>
+            <div className={styles.scene}>
+                <div className={styles.cube}
+                    /*onMouseMove={cubRotation}
+                    onTouchEnd={normalize}
+                    onMouseLeave={normalize}*/
+                     ref={cubeRef}>
+                    <div className={cn(styles.cube__face, styles.cube__face_front)}>Frontend</div>
+                    <div className={cn(styles.cube__face, styles.cube__face_back)}>Backend</div>
+                    <div className={cn(styles.cube__face, styles.cube__face_right)}>JavaScript</div>
+                    <div className={cn(styles.cube__face, styles.cube__face_left)}>CSS</div>
+                    <div className={cn(styles.cube__face, styles.cube__face_top)}>HTMl</div>
+                    <div className={cn(styles.cube__face, styles.cube__face_bottom)}>React</div>
+                </div>
             </div>
-        </div>
+        </Emergence>
     )
 }
 

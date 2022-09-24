@@ -15,5 +15,5 @@ const elementVisibilityCheck = (el:HTMLDivElement, threshold:number, mode?:strin
 
 
 export {
-    elementVisibilityCheck
+    elementVisibilityCheck,
 }

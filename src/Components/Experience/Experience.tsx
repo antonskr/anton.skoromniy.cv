@@ -1,6 +1,8 @@
 import styles from './Experience.module.scss'
 import TitleWithLine from "../Ui/TitleWithLine/TitleWithline";
 import { FaCalendarAlt, FaCity } from 'react-icons/fa';
+import Summary from "../Summary/Summary";
+import Emergence from "../Emergence/Emergence";
 
 interface IExperienceCardProps {
     position: string,
@@ -16,48 +18,52 @@ interface IExperienceCardProps {
 
 const ExperienceCard = ({...props}: IExperienceCardProps): JSX.Element => {
     return (
-        <div className={styles.card}>
-            <div className={styles.card__position}>
-                {props.position}
-            </div>
-            <div className={styles.card__companyName}>
-                {props.companyName}
-            </div>
-            <div className={styles.card__dateAndLocation}>
-                <div className={styles.dateAndLocation__date}>
-                    <div className={styles.dateAndLocation__date__dateIcon}>
-                        <FaCalendarAlt size={14} />
-                    </div>
-                    <span className={styles.dateAndLocation__date__from}>{props.date_from}</span>
-                    {' - '}
-                    <span className={styles.dateAndLocation__date__to}>{props.date_to}</span>
+        <Emergence direction={'top'} threshold={1}>
+            <div className={styles.card}>
+                <div className={styles.card__position}>
+                    {props.position}
                 </div>
-                <div className={styles.dateAndLocation__location}>
-                    <a className={styles.dateAndLocation__location__link} href={props.location_link}>
-                        <div className={styles.dateAndLocation__location__link__locationIcon}>
-                            <FaCity size={14} />
+                <div className={styles.card__companyName}>
+                    {props.companyName}
+                </div>
+                <div className={styles.card__dateAndLocation}>
+                    <div className={styles.dateAndLocation__date}>
+                        <div className={styles.dateAndLocation__date__dateIcon}>
+                            <FaCalendarAlt size={14} />
                         </div>
-                        {props.location_name}
-                    </a>
+                        <span className={styles.dateAndLocation__date__from}>{props.date_from}</span>
+                        {' - '}
+                        <span className={styles.dateAndLocation__date__to}>{props.date_to}</span>
+                    </div>
+                    <div className={styles.dateAndLocation__location}>
+                        <a className={styles.dateAndLocation__location__link} href={props.location_link}>
+                            <div className={styles.dateAndLocation__location__link__locationIcon}>
+                                <FaCity size={14} />
+                            </div>
+                            {props.location_name}
+                        </a>
+                    </div>
+                </div>
+                <div className={styles.card__description} dangerouslySetInnerHTML={{__html: props.description}} />
+                <div className={styles.card__technologies}  dangerouslySetInnerHTML={{__html: props.technologies}} />
+                <div className={styles.card__activity}>
+                    {
+                        props.activity.map(_el => {
+                            return <div key={_el}>{_el}</div>
+                        })
+                    }
                 </div>
             </div>
-            <div className={styles.card__description} dangerouslySetInnerHTML={{__html: props.description}} />
-            <div className={styles.card__technologies}  dangerouslySetInnerHTML={{__html: props.technologies}} />
-            <div className={styles.card__activity}>
-                {
-                    props.activity.map(_el => {
-                        return <div key={_el}>{_el}</div>
-                    })
-                }
-            </div>
-        </div>
+        </Emergence>
     )
 }
 
 const Experience = (): JSX.Element => {
     return (
         <div className={styles.experience}>
-            <TitleWithLine title='Experience'/>
+            <Emergence>
+                <TitleWithLine title='Experience'/>
+            </Emergence>
             <ExperienceCard
                 position=' Middle Front End Developer'
                 companyName='ZAGROZA digital agency'

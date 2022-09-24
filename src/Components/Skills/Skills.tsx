@@ -1,5 +1,6 @@
 import styles from './Skills.module.scss';
 import TitleWithLine from "../Ui/TitleWithLine/TitleWithline";
+import Emergence from "../Emergence/Emergence";
 
 interface ISkillsCard {
     category: string,
@@ -9,18 +10,22 @@ interface ISkillsCard {
 const SkillCard = ({ category, skills }: ISkillsCard) => {
     return (
         <div className={styles.skillsCard}>
-            <div className={styles.skillsCard__category}>
-                { category }
-            </div>
-            <div className={styles.skillsCard__skills}>
-                {
-                    skills.map(_el => {
-                        return (
-                            <p key={_el}>{_el}</p>
-                        )
-                    })
-                }
-            </div>
+            <Emergence>
+                <div className={styles.skillsCard__category}>
+                    { category }
+                </div>
+            </Emergence>
+            <Emergence>
+                <div className={styles.skillsCard__skills}>
+                    {
+                        skills.map(_el => {
+                            return (
+                                <p key={_el}>{_el}</p>
+                            )
+                        })
+                    }
+                </div>
+            </Emergence>
         </div>
     )
 }
@@ -28,7 +33,9 @@ const SkillCard = ({ category, skills }: ISkillsCard) => {
 const Skills = ():JSX.Element => {
     return (
         <div className={styles.skills}>
-            <TitleWithLine title='Skills'/>
+            <Emergence>
+                <TitleWithLine title='Skills' />
+            </Emergence>
             <SkillCard
                 category={'Client-side'}
                 skills={['HTML', 'CSS','SASS', 'JavaScript', 'React', 'NextJs', 'TypeScript']}
