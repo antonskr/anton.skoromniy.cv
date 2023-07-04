@@ -18,7 +18,7 @@ interface IExperienceCardProps {
 
 const ExperienceCard = ({ ...props }: IExperienceCardProps): JSX.Element => {
   return (
-    <Emergence direction={"top"} threshold={1}>
+    <Emergence direction={"top"} threshold={0.5}>
       <div className={styles.card}>
         <div className={styles.card__position}>{props.position}</div>
         <div className={styles.card__companyName}>{props.companyName}</div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.scss';
 
-import Layout from './Layout/Layout';
+import Layout from './Styles/Layout/Layout';
 import BasicInfo from "./Components/BasicInfo/BasicInfo";
 import Column from "./Column/Column";
 
