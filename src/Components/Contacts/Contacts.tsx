@@ -6,10 +6,10 @@ import { FaLinkedin, FaPhone, FaMailBulk, FaCity } from 'react-icons/fa'
 import { IconType } from 'react-icons'
 
 enum contactTypes {
-  city = 'city',
-  mail = 'mail',
-  phone = 'phone',
-  linkedin = 'linkedin',
+  CITY = 'city',
+  PHONE = 'phone',
+  MAIL = 'mail',
+  LINKEDIN = 'linkedin',
 }
 
 interface itemI {
@@ -58,23 +58,23 @@ const ContactItem = ({ icon, contact_value, link, type }: itemI): JSX.Element =>
 const Contacts = (): JSX.Element => {
   return (
     <div className={styles.contacts}>
-      <ContactItem icon={FaPhone} contact_value={'+380688361734'} type={contactTypes.phone} />
+      <ContactItem icon={FaPhone} contact_value={'+380688361734'} type={contactTypes.PHONE} />
       <ContactItem
         icon={FaMailBulk}
         contact_value={'antonskoromniy@gmail.com'}
-        type={contactTypes.mail}
+        type={contactTypes.MAIL}
       />
       <ContactItem
         icon={FaLinkedin}
         contact_value={'My linkedin'}
         link={'https://www.linkedin.com/in/anton-skoromniy-33684b1b7/'}
-        type={contactTypes.linkedin}
+        type={contactTypes.LINKEDIN}
       />
       <ContactItem
         icon={FaCity}
         contact_value={'Kiyv, Ukraine'}
         link={'https://goo.gl/maps/REQDnT4KJhNkiXoz8'}
-        type={contactTypes.city}
+        type={contactTypes.CITY}
       />
     </div>
   )
