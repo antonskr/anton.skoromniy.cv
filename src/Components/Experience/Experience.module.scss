@@ -72,6 +72,10 @@
     line-height: var(--text-size-small-lg-lh);
     color: $lightened-black-color;
 
+    & span {
+      font-weight: 700;
+    }
+
     & a {
       position: relative;
       color: $lightened-black-color;

@@ -1,6 +1,6 @@
 import styles from './Cube.module.scss'
 import cn from 'classnames'
-import React, { MouseEventHandler, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Emergence from '../../Emergence/Emergence'
 
 interface IDirections {
