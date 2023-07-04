@@ -1,11 +1,9 @@
-import React from 'react'
 import styles from './MyPhoto.module.scss'
-import Img from 'react-optimized-image'
 const MyPhoto = () => {
   return (
     <>
       <div className={styles.photo}>
-        <Img sizes={[200, 200]} src={require('../../../images/Myphoto.jpg')} />
+        <img src='../../../images/Myphoto.jpg' />
         <div className={styles.photo__verge}></div>
       </div>
 
