@@ -1,10 +1,10 @@
 import styles from './Column.module.scss'
+import Emergence from '../Components/Emergence/Emergence'
 import Summary from '../Components/Summary/Summary'
+import Experience from '../Components/Experience/Experience'
 import Skills from '../Components/Skills/Skills'
 import Languages from '../Components/Languages/Languages'
-import Experience from '../Components/Experience/Experience'
 import Cube from '../Components/Ui/Cube/Cube'
-import Emergence from '../Components/Emergence/Emergence'
 
 const Column = (): JSX.Element => {
   return (

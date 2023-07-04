@@ -1,11 +1,8 @@
 import styles from './Skills.module.scss'
 import TitleWithLine from '../Ui/TitleWithLine/TitleWithline'
 import Emergence from '../Emergence/Emergence'
+import { ISkillsCard } from './Skills.props'
 
-interface ISkillsCard {
-  category: string
-  skills: string[]
-}
 
 const SkillCard = ({ category, skills }: ISkillsCard) => {
   return (
@@ -15,8 +12,8 @@ const SkillCard = ({ category, skills }: ISkillsCard) => {
       </Emergence>
       <Emergence>
         <div className={styles.skillsCard__skills}>
-          {skills.map((_el) => {
-            return <p key={_el}>{_el}</p>
+          {skills.map((skill) => {
+            return <p key={skill}>{skill}</p>
           })}
         </div>
       </Emergence>

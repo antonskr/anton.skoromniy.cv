@@ -1,23 +1,12 @@
 import styles from './Languages.module.scss'
 import TitleWithLine from '../Ui/TitleWithLine/TitleWithline'
-import cn from 'classnames'
 import { useEffect, useRef, useState } from 'react'
-import { elementVisibilityCheck } from '../../Helper'
 import Emergence from '../Emergence/Emergence'
+import cn from 'classnames'
+import { Ilanguage, IRating } from './Languages.props'
 
-interface IRating {
-  rating: number
-  elems: number[]
-  isVisible: boolean
-}
 
-interface Ilanguage {
-  language: string
-  level: string
-  rating: number
-}
-
-const Rating = ({ rating, elems, isVisible }: IRating) => {
+const Rating = ({ rating = 0, isVisible }: IRating) => {
   const ratingRef = useRef<HTMLDivElement>(null)
 
   const fillCirclesIsRatingVisible = () => {
@@ -39,18 +28,16 @@ const Rating = ({ rating, elems, isVisible }: IRating) => {
       fillCirclesIsRatingVisible()
     }
   }, [rating, isVisible])
+
+  const ratingElems = [1, 2, 3, 4, 5]
+
   return (
     <div className={styles.rating} ref={ratingRef}>
-      {elems.map((_el, idx) => {
-        return <div className={cn(styles.rating__circle)} key={`circle${idx}`} />
-      })}
+      {ratingElems.map((_el, idx) => (
+        <div className={cn(styles.rating__circle)} key={`circle${idx}`} />
+      ))}
     </div>
   )
-}
-
-Rating.defaultProps = {
-  rating: 0,
-  elems: [1, 2, 3, 4, 5],
 }
 
 const Language = ({ language, level, rating }: Ilanguage) => {
@@ -75,9 +62,15 @@ const Languages = () => {
       <Emergence>
         <TitleWithLine title={'Languages'} />
       </Emergence>
-      <Language language='Ukrainian' level='Native' rating={5} />
-      <Language language='English' level='Pre-intermediate' rating={3} />
-      <Language language='Russian' level='Proficient' rating={5} />
+      <Emergence>
+        <Language language='Ukrainian' level='Native' rating={5} />
+      </Emergence>
+      <Emergence>
+        <Language language='English' level='Pre-intermediate' rating={3} />
+      </Emergence>
+      <Emergence>
+        <Language language='Russian' level='Proficient' rating={5} />
+      </Emergence>
     </div>
   )
 }

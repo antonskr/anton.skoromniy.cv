@@ -5,7 +5,6 @@ import Emergence from '../../Emergence/Emergence'
 
 interface IDirections {
   [key: string]: any
-
   front: [number, number]
   right: [number, number]
   back: [number, number]
@@ -76,9 +75,9 @@ const Cube = () => {
       <div className={styles.scene}>
         <div
           className={styles.cube}
-          /* onMouseMove={cubRotation}
+          /*        onMouseMove={cubRotation}
                     onTouchEnd={normalize}
-                    onMouseLeave={normalize}*/
+                    onMouseLeave={normalize} */
           ref={cubeRef}
         >
           <div className={cn(styles.cube__face, styles.cube__face_front)}>Frontend</div>

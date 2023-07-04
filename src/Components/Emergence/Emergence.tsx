@@ -40,4 +40,5 @@ Emergence.defaultProps = {
   direction: 'top',
   threshold: 1,
 }
+
 export default Emergence
