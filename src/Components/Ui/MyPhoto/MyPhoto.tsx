@@ -1,9 +1,11 @@
 import styles from './MyPhoto.module.scss'
+import photo from '../../../images/My_photo.jpg'
+
 const MyPhoto = () => {
   return (
     <>
       <div className={styles.photo}>
-        <img src='../../../images/Myphoto.jpg' />
+        <img src={photo} />
         <div className={styles.photo__verge}></div>
       </div>
 
