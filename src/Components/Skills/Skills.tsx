@@ -37,16 +37,24 @@ const Skills = ():JSX.Element => {
                 <TitleWithLine title='Skills' />
             </Emergence>
             <SkillCard
-                category={'Client-side'}
-                skills={['HTML', 'CSS','SASS', 'JavaScript', 'React', 'NextJs', 'TypeScript']}
+                category={'CORE'}
+                skills={['JavaScript', 'TypeScript', 'HTML', 'CSS', 'SASS', 'GIT', 'Figma', 'REST API', 'DRY', 'KISS']}
             />
             <SkillCard
-                category={'Server-side'}
-                skills={['Directus', 'NodeJs', 'Websockets']}
+                category={'Front-end'}
+                skills={['NextJS', 'React', 'Redux-toolkit', 'React-Router', 'React-Query', 'Motion', 'GSAP']}
             />
             <SkillCard
-                category={'Experience in development methodologies'}
-                skills={['Scrum', 'Agile', 'Kanban']}
+                category={'Back-end'}
+                skills={['NodeJS', 'NestJS']}
+            />
+            <SkillCard
+                category={'Headless CMS'}
+                skills={['Directus', 'Strapi']}
+            />
+            <SkillCard
+                category={'Other'}
+                skills={['WebSockets', 'Scrum']}
             />
         </div>
     )

@@ -80,8 +80,8 @@ const Contacts = ():JSX.Element => {
             />
             <ContactItem
                 icon={FaCity}
-                contact_value={'Kiyv, Ukraine'}
-                link={'https://goo.gl/maps/REQDnT4KJhNkiXoz8'}
+                contact_value={'Kharkiv, Ukraine'}
+                link={'https://goo.gl/maps/sZRavJ12JZUKR8FY9'}
                 type={contactTypes.city}
             />
         </div>
