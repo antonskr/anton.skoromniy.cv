@@ -72,7 +72,7 @@ const Experience = (): JSX.Element => {
         location_name='Kharkiv, Ukraine'
         location_link='/'
         description={
-          "Developed the frontend for a volunteer platform - <a href='https://volunteering-ukraine.com' target='_blank' rel='noreferrer'>volunteering-ukraine</a>, <a href='https://milibris.dev.webvision360.com' target='_blank' rel='noreferrer'>Milibris</a> - Website for a company that improves digital publishing and implements distribution solutions."
+          'Developed the frontend for a volunteer platform - <a href=\'https://volunteering-ukraine.com\' target=\'_blank\' rel=\'noreferrer\'>volunteering-ukraine</a>, <a href=\'https://milibris.dev.webvision360.com\' target=\'_blank\' rel=\'noreferrer\'>Milibris</a> - Website for a company that improves digital publishing and implements distribution solutions.'
         }
         technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js.'
         activity={[
@@ -89,7 +89,7 @@ const Experience = (): JSX.Element => {
         location_name='Kharkiv, Ukraine'
         location_link='/'
         description={
-          "Developed the websites: <a href='https://wde3d.com' target='_blank' rel='noreferrer'>WDE3D</a>, <a href='https://zagroza.agency' target='_blank' rel='noreferrer'>Zagroza-agency</a> and others projects."
+          'Developed the websites: <a href=\'https://wde3d.com\' target=\'_blank\' rel=\'noreferrer\'>WDE3D</a>, <a href=\'https://zagroza.agency\' target=\'_blank\' rel=\'noreferrer\'>Zagroza-agency</a> and others projects.'
         }
         technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js, Docker, SASS.'
         activity={[
@@ -106,7 +106,7 @@ const Experience = (): JSX.Element => {
         location_name='Kharkiv, Ukraine'
         location_link='/'
         description={
-          "Participated in the development of the <a href='https://promius.com.ua' target='_blank' rel='noreferrer'>Promius</a> website."
+          'Participated in the development of the <a href=\'https://promius.com.ua\' target=\'_blank\' rel=\'noreferrer\'>Promius</a> website.'
         }
         technologies='<span>Tehcnolgies used:</span> React, NextJS.'
         activity={['Developed UI components for an existing project.']}
