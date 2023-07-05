@@ -3,7 +3,6 @@ import TitleWithLine from '../Ui/TitleWithLine/TitleWithline'
 import Emergence from '../Emergence/Emergence'
 import { ISkillsCard } from './Skills.props'
 
-
 const SkillCard = ({ category, skills }: ISkillsCard) => {
   return (
     <div className={styles.skillsCard}>
@@ -28,14 +27,35 @@ const Skills = (): JSX.Element => {
         <TitleWithLine title='Skills' />
       </Emergence>
       <SkillCard
-        category={'Client-side'}
-        skills={['HTML', 'CSS', 'SASS', 'JavaScript', 'React', 'NextJs', 'TypeScript']}
+        category={'CORE'}
+        skills={[
+          'JavaScript',
+          'TypeScript',
+          'HTML',
+          'CSS',
+          'SASS',
+          'GIT',
+          'REST API',
+          'DRY',
+          'KISS',
+          'Figma',
+        ]}
       />
-      <SkillCard category={'Server-side'} skills={['Directus', 'NodeJs', 'Websockets']} />
       <SkillCard
-        category={'Experience in development methodologies'}
-        skills={['Scrum', 'Agile', 'Kanban']}
+        category={'Frontend'}
+        skills={[
+          'NextJS',
+          'React',
+          'Redux-toolkit',
+          'React-Router',
+          'React-Query',
+          'Motion',
+          'GSAP',
+          'WebSockets',
+        ]}
       />
+      <SkillCard category={'Backend'} skills={['NodeJS', 'NestJs']} />
+      <SkillCard category={'Headless CMS'} skills={['Directus', 'Strapi']} />
     </div>
   )
 }

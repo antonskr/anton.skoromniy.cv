@@ -70,7 +70,7 @@ const Experience = (): JSX.Element => {
             <span>Projects:</span> <br/>
                 - <a href='https://nfest.io/' target='_blank' rel='noreferrer'>NFEST</a>: event management application<br/>
                 - <a href='https://beta.app.brandflow.co/' target='_blank' rel='noreferrer'>Brandflow</a>: a SaaS platform for managing and tracking digital ad campaigns<br/>
-                - <a href='https://illuspark.com/' target='_blank' rel='noreferrer'>Illuspark</a>: a social media platform for artists and designers
+                - <a href='https://illuspark.com/' target='_blank' rel='noreferrer'>Illuspark</a>: a social media platform for artists and designers<br/><br/>
         `}
         technologies='<span>Tehcnolgies used:</span> React, NextJS, NestJs, Strapi, Websokets, GSAP<br/>'
         activity={[
