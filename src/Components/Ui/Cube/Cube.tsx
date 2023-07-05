@@ -20,7 +20,7 @@ const Cube = () => {
     bottom: [90, 0],
   }
 
-  const getCubeCoord = (event: React.MouseEvent | TouchEvent<HTMLDivElement>) => {
+  const getCubeCoord = (event: MouseEvent | TouchEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
     if ((event as TouchEvent).touches) {
       const touchEvent = event as TouchEvent
@@ -42,7 +42,7 @@ const Cube = () => {
     const { x, y } = getCubeCoord(event)
     cubeRef.current?.style.setProperty('--cubeYRotate', x + 'deg')
     cubeRef.current?.style.setProperty('--cubeXRotate', y + 'deg')
-
+     
     innerCubeRef.current?.style.setProperty('--cubeYRotate', x + 'deg')
     innerCubeRef.current?.style.setProperty('--cubeXRotate', y * -1 + 'deg')
   }
