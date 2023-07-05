@@ -1,11 +1,7 @@
 import styles from './Skills.module.scss'
 import TitleWithLine from '../Ui/TitleWithLine/TitleWithline'
 import Emergence from '../Emergence/Emergence'
-
-interface ISkillsCard {
-  category: string
-  skills: string[]
-}
+import { ISkillsCard } from './Skills.props'
 
 const SkillCard = ({ category, skills }: ISkillsCard) => {
   return (
@@ -15,8 +11,8 @@ const SkillCard = ({ category, skills }: ISkillsCard) => {
       </Emergence>
       <Emergence>
         <div className={styles.skillsCard__skills}>
-          {skills.map((_el) => {
-            return <p key={_el}>{_el}</p>
+          {skills.map((skill) => {
+            return <p key={skill}>{skill}</p>
           })}
         </div>
       </Emergence>
@@ -31,14 +27,35 @@ const Skills = (): JSX.Element => {
         <TitleWithLine title='Skills' />
       </Emergence>
       <SkillCard
-        category={'Client-side'}
-        skills={['HTML', 'CSS', 'SASS', 'JavaScript', 'React', 'NextJs', 'TypeScript']}
+        category={'CORE'}
+        skills={[
+          'JavaScript',
+          'TypeScript',
+          'HTML',
+          'CSS',
+          'SASS',
+          'GIT',
+          'REST API',
+          'DRY',
+          'KISS',
+          'Figma',
+        ]}
       />
-      <SkillCard category={'Server-side'} skills={['Directus', 'NodeJs', 'Websockets']} />
       <SkillCard
-        category={'Experience in development methodologies'}
-        skills={['Scrum', 'Agile', 'Kanban']}
+        category={'Frontend'}
+        skills={[
+          'NextJS',
+          'React',
+          'Redux-toolkit',
+          'React-Router',
+          'React-Query',
+          'Motion',
+          'GSAP',
+          'WebSockets',
+        ]}
       />
+      <SkillCard category={'Backend'} skills={['NodeJS', 'NestJs']} />
+      <SkillCard category={'Headless CMS'} skills={['Directus', 'Strapi']} />
     </div>
   )
 }

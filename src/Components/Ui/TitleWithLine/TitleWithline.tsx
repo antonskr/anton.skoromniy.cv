@@ -1,25 +1,19 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import styles from './TitleWithLine.module.scss'
 import cn from 'classnames'
 import { elementVisibilityCheck } from '../../../Helper'
 
-interface titleWithLineProps {
+interface TitleWithLineProps {
   title: string
 }
 
-const TitleWithLine = ({ title }: titleWithLineProps): JSX.Element => {
+const TitleWithLine = ({ title }: TitleWithLineProps): JSX.Element => {
   const titleRef = useRef<HTMLDivElement>(null)
 
   const fillIsTitleVisible = () => {
-    if (!titleRef.current) {
-      return
-    }
-    const isVisible = elementVisibilityCheck(titleRef.current, 1)
-
-    if (isVisible) {
-      titleRef.current.classList.add(styles.titleWithLine_visible)
-    } else {
-      titleRef.current.classList.remove(styles.titleWithLine_visible)
+    if (titleRef.current) {
+      const isVisible = elementVisibilityCheck(titleRef.current, 1)
+      titleRef.current.classList.toggle(styles.titleWithLine_visible, isVisible)
     }
   }
 
