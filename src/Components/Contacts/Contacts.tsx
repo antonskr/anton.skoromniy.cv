@@ -1,20 +1,8 @@
 import styles from './Contact.module.scss'
 import { FaLinkedin, FaPhone, FaMailBulk, FaCity } from 'react-icons/fa'
 import { IconType } from 'react-icons'
+import { ContactItemProps, ContactTypes } from './Contact.props'
 
-enum ContactTypes {
-  CITY = 'city',
-  PHONE = 'phone',
-  MAIL = 'mail',
-  LINKEDIN = 'linkedin',
-}
-
-interface ContactItemProps {
-  icon?: IconType
-  contact_value: string
-  link?: string
-  type: ContactTypes
-}
 
 const ContactItem: React.FC<ContactItemProps> = ({
   icon,

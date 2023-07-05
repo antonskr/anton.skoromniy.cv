@@ -8,4 +8,5 @@ export interface IExperienceCardProps {
   description: string
   technologies: string
   activity: string[]
+  threshold?: number
 }

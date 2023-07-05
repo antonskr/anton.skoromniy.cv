@@ -4,17 +4,22 @@ import cn from 'classnames'
 import { useEffect, useRef } from 'react'
 import { elementVisibilityCheck } from '../../Helper'
 
-const Emergence = ({ children, ...props }: EmergenceProps): JSX.Element => {
+const Emergence = ({
+  children,
+  callbackFn,
+  direction = 'top',
+  threshold = 1,
+}: EmergenceProps): JSX.Element => {
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   const emergenceIfVisible = () => {
     if (!wrapperRef.current) {
       return
     }
-    const isVisible = elementVisibilityCheck(wrapperRef.current, props.threshold)
+    const isVisible = elementVisibilityCheck(wrapperRef.current, threshold)
     if (isVisible) {
-      if (typeof props.callbackFn === 'function') {
-        props.callbackFn(true)
+      if (typeof callbackFn === 'function') {
+        callbackFn(true)
       }
       wrapperRef.current.classList.add(styles.visible)
       window.removeEventListener('scroll', emergenceIfVisible)
@@ -30,15 +35,10 @@ const Emergence = ({ children, ...props }: EmergenceProps): JSX.Element => {
   }, [])
 
   return (
-    <div className={cn(styles.wrapper, styles[props.direction])} ref={wrapperRef}>
+    <div className={cn(styles.wrapper, styles[direction])} ref={wrapperRef}>
       {children}
     </div>
   )
-}
-
-Emergence.defaultProps = {
-  direction: 'top',
-  threshold: 1,
 }
 
 export default Emergence

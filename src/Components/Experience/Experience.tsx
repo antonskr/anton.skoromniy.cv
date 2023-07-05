@@ -1,4 +1,3 @@
-/* eslint-disable quotes */
 import styles from './Experience.module.scss'
 import TitleWithLine from '../Ui/TitleWithLine/TitleWithline'
 import Emergence from '../Emergence/Emergence'
@@ -7,7 +6,7 @@ import { IExperienceCardProps } from './Experience.props'
 
 const ExperienceCard = ({ ...props }: IExperienceCardProps): JSX.Element => {
   return (
-    <Emergence direction={'top'} threshold={0.9}>
+    <Emergence direction={'top'} threshold={props.threshold}>
       <div className={styles.card}>
         <div className={styles.card__position}>{props.position}</div>
         <div className={styles.card__companyName}>{props.companyName}</div>
@@ -54,6 +53,7 @@ const Experience = (): JSX.Element => {
         <TitleWithLine title='Experience' />
       </Emergence>
       <ExperienceCard
+        threshold={0.5}
         position=' Middle Front End Developer'
         companyName='Lynksen'
         date_from='10/2022'
@@ -94,7 +94,7 @@ const Experience = (): JSX.Element => {
         location_name='Kharkiv, Ukraine'
         location_link='/'
         description={
-          "Developed the websites: <a href='https://wde3d.com' target='_blank' rel='noreferrer'>WDE3D</a>, <a href='https://zagroza.agency' target='_blank' rel='noreferrer'>Zagroza-agency</a> and others projects."
+          'Developed the websites: <a href=\'https://wde3d.com\' target=\'_blank\' rel=\'noreferrer\'>WDE3D</a>, <a href=\'https://zagroza.agency\' target=\'_blank\' rel=\'noreferrer\'>Zagroza-agency</a> and others projects.'
         }
         technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js, Docker, SASS.'
         activity={[
@@ -111,7 +111,7 @@ const Experience = (): JSX.Element => {
         location_name='Kharkiv, Ukraine'
         location_link='/'
         description={
-          "Participated in the development of the <a href='https://promius.com.ua' target='_blank' rel='noreferrer'>Promius</a> website."
+          'Participated in the development of the <a href=\'https://promius.com.ua\' target=\'_blank\' rel=\'noreferrer\'>Promius</a> website.'
         }
         technologies='<span>Tehcnolgies used:</span> React, NextJS.'
         activity={['Developed UI components for an existing project.']}
