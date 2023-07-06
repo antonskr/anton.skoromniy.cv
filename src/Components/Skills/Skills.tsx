@@ -1,27 +1,63 @@
 import styles from './Skills.module.scss'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import TitleWithLine from '../Ui/TitleWithLine/TitleWithline'
 import Emergence from '../Emergence/Emergence'
-
-interface ISkillsCard {
-  category: string
-  skills: string[]
-}
+import { ISkillsCard } from './Skills.props'
+import cn from 'classnames'
+import { elementVisibilityCheck } from '../../Helper'
 
 const SkillCard = ({ category, skills }: ISkillsCard) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const skillsCardRef = useRef<HTMLDivElement>(null);
+
+  const toggleSkillsCardVisibility = useCallback((isVisible: boolean) => {
+    setIsVisible(isVisible);
+  }, []);
+
+  const checkIsVisible = useCallback(() => {
+    if (!skillsCardRef.current) return;
+    const isSkillsCardVisible = elementVisibilityCheck(skillsCardRef.current, 1);
+    if (isSkillsCardVisible) {
+      toggleSkillsCardVisibility(true);
+    }
+  }, [toggleSkillsCardVisibility]);
+
+  useEffect(() => {
+    checkIsVisible();
+    window.addEventListener('scroll', checkIsVisible);
+
+    return () => window.removeEventListener('scroll', checkIsVisible);
+  }, [checkIsVisible]);
+
   return (
     <div className={styles.skillsCard}>
       <Emergence>
         <div className={styles.skillsCard__category}>{category}</div>
       </Emergence>
       <Emergence>
-        <div className={styles.skillsCard__skills}>
-          {skills.map((_el) => {
-            return <p key={_el}>{_el}</p>
+        <div
+          className={cn(styles.skillsCard__skills, {
+            [styles.skillsCard__skills__visible]: isVisible,
+          })}
+          ref={skillsCardRef}
+        >
+          {skills.map((skill, idx) => {
+            return (
+              <p
+                key={skill}
+                className={styles.skillsCard__skills__item}
+                style={{
+                  transitionDelay: `${idx * 0.1}s`,
+                }}
+              >
+                {skill}
+              </p>
+            );
           })}
         </div>
       </Emergence>
     </div>
-  )
+  );
 }
 
 const Skills = (): JSX.Element => {
@@ -31,14 +67,35 @@ const Skills = (): JSX.Element => {
         <TitleWithLine title='Skills' />
       </Emergence>
       <SkillCard
-        category={'Client-side'}
-        skills={['HTML', 'CSS', 'SASS', 'JavaScript', 'React', 'NextJs', 'TypeScript']}
+        category={'CORE'}
+        skills={[
+          'JavaScript',
+          'TypeScript',
+          'HTML',
+          'CSS',
+          'SASS',
+          'GIT',
+          'REST API',
+          'DRY',
+          'KISS',
+          'Figma',
+        ]}
       />
-      <SkillCard category={'Server-side'} skills={['Directus', 'NodeJs', 'Websockets']} />
       <SkillCard
-        category={'Experience in development methodologies'}
-        skills={['Scrum', 'Agile', 'Kanban']}
+        category={'Frontend'}
+        skills={[
+          'NextJS',
+          'React',
+          'Redux-toolkit',
+          'React-Router',
+          'React-Query',
+          'Motion',
+          'GSAP',
+          'WebSockets',
+        ]}
       />
+      <SkillCard category={'Backend'} skills={['NodeJS', 'NestJs']} />
+      <SkillCard category={'Headless CMS'} skills={['Directus', 'Strapi']} />
     </div>
   )
 }

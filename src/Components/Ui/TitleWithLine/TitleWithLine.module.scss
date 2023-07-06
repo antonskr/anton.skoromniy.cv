@@ -3,6 +3,7 @@
 .titleWithLine {
   $border-height: 3px;
   position: relative;
+  padding-bottom: 3px;
   border-bottom: $border-height solid #000;
 
   &::before {

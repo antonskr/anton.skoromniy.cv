@@ -1,3 +1,15 @@
+// ----------- FONT SIZES ------------
+
+$s-42: 2.625rem; // 42px
+$s-31: 1.9375rem; // 31px
+$s-28: 1.75rem; // 28px
+$s-21: 1.3125rem; // 21px
+$s-16: 1rem; // 16px
+$s-15: 0.9375rem; // 15px
+$s-14: 0.875rem; // 14px
+
+// ----------- MEDIA QUERIES ------------
+
 @mixin media-mobile-sm {
   @media screen and (max-width: 567px) {
     @content;
@@ -10,8 +22,63 @@
   }
 }
 
+// ----------- SIDE EFFECTS ------------
+
 @mixin title-hover {
   &:hover :global(.titleWithLine):before {
     transform: rotateY(0deg);
   }
+}
+
+// ----------- POSITIONING ------------
+
+@mixin flexbox ($direction: row, $justify: center, $align: center, $wrap: wrap) { 
+  display: flex;
+  flex-direction: $direction;
+  justify-content: $justify;
+  align-items: $align;
+  flex-wrap: $wrap;
+}
+
+// ----------- FONTS MIXINS ------------
+
+@mixin font-large {
+  font-size: $s-42;
+  font-weight: bold;
+  line-height: 100%;
+
+  @include media-mobile {
+    font-size: $s-31;
+  }
+}
+
+// 28px
+@mixin font-medium {
+  font-size: $s-28;
+  font-weight: bold;
+  line-height: 100%;
+}
+
+// 21px
+@mixin font-normal {
+  font-size: $s-21;
+  line-height: 100%;
+}
+
+// 16px
+@mixin font-small {
+  font-size: $s-16;
+  line-height: 100%;
+}
+
+// 15px
+@mixin font-mini {
+  font-size: $s-15;
+  line-height: 100%;
+}
+
+// 14px
+@mixin font-extra-small {
+  font-size: $s-14;
+  line-height: 100%;
 }

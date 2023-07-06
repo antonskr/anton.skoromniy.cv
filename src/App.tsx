@@ -1,5 +1,5 @@
-import React from 'react'
-import './App.scss'
+// import fonts from 'Fonts/index.scss'
+import './Fonts/index.scss'
 
 import Layout from './Components/Layout/Layout'
 import BasicInfo from './Components/BasicInfo/BasicInfo'
