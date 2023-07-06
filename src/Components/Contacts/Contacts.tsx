@@ -3,7 +3,6 @@ import { FaLinkedin, FaPhone, FaMailBulk, FaCity } from 'react-icons/fa'
 import { IconType } from 'react-icons'
 import { ContactItemProps, ContactTypes } from './Contact.props'
 
-
 const ContactItem: React.FC<ContactItemProps> = ({
   icon,
   contact_value,
