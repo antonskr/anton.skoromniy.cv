@@ -1,5 +1,5 @@
 import styles from './MyPhoto.module.scss'
-import photo from '../../../images/My_photo.jpg'
+import photo from '../../../Images/My_photo.jpg'
 
 const MyPhoto = () => {
   return (
