@@ -90,17 +90,23 @@ const Experience = (): JSX.Element => {
         position='Junior Front End Developer'
         companyName='ZAGROZA digital agency'
         date_from='07/2021'
-        date_to='03/2022'
+        date_to='10/2022'
         location_name='Kharkiv, Ukraine'
         location_link='/'
-        description={
-          'Developed the websites: <a href=\'https://wde3d.com\' target=\'_blank\' rel=\'noreferrer\'>WDE3D</a>, <a href=\'https://zagroza.agency\' target=\'_blank\' rel=\'noreferrer\'>Zagroza-agency</a> and others projects.'
-        }
+        description={`Developed the websites: <br/>
+          <a href='https://wde3d.com' target='_blank' rel='noreferrer'>WDE3D</a>
+          <a href='https://zagroza.agency' target='_blank' rel='noreferrer'>Zagroza-agency</a> <br/>
+          <a href='https://volunteering-ukraine.com/' target='_blank' rel='noreferrer'>volunteering-ukraine</a> - volunteer platform <br/>
+          <a href='https://www.milibris.com//' target='_blank' rel='noreferrer'>Milibris</a> - Website for a company that improves digital publishing and implements distribution solutions.
+        `}
         technologies='<span>Tehcnolgies used:</span> React, NextJS, Headless CMS Directus, Node.js, Docker, SASS.'
         activity={[
           'Created complex animations',
           'Developed front end and some backend',
           'Sending and validating files on server',
+          'Developed front end part',
+          'Created the mobile versions',
+          'Suggested ideas that have been implemented',
         ]}
       />
       <ExperienceCard
@@ -114,7 +120,10 @@ const Experience = (): JSX.Element => {
           'Participated in the development of the <a href=\'https://promius.com.ua\' target=\'_blank\' rel=\'noreferrer\'>Promius</a> website.'
         }
         technologies='<span>Tehcnolgies used:</span> React, NextJS.'
-        activity={['Developed UI components for an existing project.']}
+        activity={[
+          'Developed UI components for an existing project.',
+          'Was in charge of integrating a system for moderating content (Directus)',
+        ]}
       />
     </div>
   )
