@@ -1,4 +1,3 @@
-// import fonts from 'Fonts/index.scss'
 import './Fonts/index.scss'
 
 import Layout from './Components/Layout/Layout'
