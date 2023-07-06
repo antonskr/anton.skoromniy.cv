@@ -7,7 +7,7 @@ const Summary = () => {
       <TitleWithLine title={'Summary'} />
       <div className={styles.description}>
         <div>
-          JavaScript Web Developer with more 2.5 years of experience in JavaScript, React, NextJS
+          JavaScript Web Developer with more than 2.5 years of experience in JavaScript, React, NextJS
           Well-aqcuainted with develop methodologies.
         </div>
         <div>

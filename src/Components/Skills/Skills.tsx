@@ -1,23 +1,63 @@
 import styles from './Skills.module.scss'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import TitleWithLine from '../Ui/TitleWithLine/TitleWithline'
 import Emergence from '../Emergence/Emergence'
 import { ISkillsCard } from './Skills.props'
+import cn from 'classnames'
+import { elementVisibilityCheck } from '../../Helper'
 
 const SkillCard = ({ category, skills }: ISkillsCard) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const skillsCardRef = useRef<HTMLDivElement>(null);
+
+  const toggleSkillsCardVisibility = useCallback((isVisible: boolean) => {
+    setIsVisible(isVisible);
+  }, []);
+
+  const checkIsVisible = useCallback(() => {
+    if (!skillsCardRef.current) return;
+    const isSkillsCardVisible = elementVisibilityCheck(skillsCardRef.current, 1);
+    if (isSkillsCardVisible) {
+      toggleSkillsCardVisibility(true);
+    }
+  }, [toggleSkillsCardVisibility]);
+
+  useEffect(() => {
+    checkIsVisible();
+    window.addEventListener('scroll', checkIsVisible);
+
+    return () => window.removeEventListener('scroll', checkIsVisible);
+  }, [checkIsVisible]);
+
   return (
     <div className={styles.skillsCard}>
       <Emergence>
         <div className={styles.skillsCard__category}>{category}</div>
       </Emergence>
       <Emergence>
-        <div className={styles.skillsCard__skills}>
-          {skills.map((skill) => {
-            return <p key={skill}>{skill}</p>
+        <div
+          className={cn(styles.skillsCard__skills, {
+            [styles.skillsCard__skills__visible]: isVisible,
+          })}
+          ref={skillsCardRef}
+        >
+          {skills.map((skill, idx) => {
+            return (
+              <p
+                key={skill}
+                className={styles.skillsCard__skills__item}
+                style={{
+                  transitionDelay: `${idx * 0.1}s`,
+                }}
+              >
+                {skill}
+              </p>
+            );
           })}
         </div>
       </Emergence>
     </div>
-  )
+  );
 }
 
 const Skills = (): JSX.Element => {

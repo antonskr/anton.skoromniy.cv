@@ -9,7 +9,6 @@
   --content-max-width: 1000px;
 
   // ----- font-sizes --------
-  --text-big-size: 2em;
   --text-size: 1em;
   --text-size-small-lg: 0.7142em;
   --text-size-small: 0.6666em;
@@ -17,7 +16,6 @@
 
 
   // ------ line-height ------
-  --text-big-size-lh: 1;
   --text-lh: 1.19;
   --text-size-small-lg-lh: 1.2666;
   --text-size-small-lh: 1.21;
@@ -26,7 +24,6 @@
   @include media-mobile {
     --content-vertical-paddings: 50px;
     --content-horizontal-paddings: 20px;
-
     --text-big-size: 1.5em;
   }
 }
@@ -51,26 +48,16 @@ a {
   box-sizing: border-box;
 }
 
-code {
-  font-family: 'Rubik', sans-serif
-}
-
 h1 {
-  font-family: 'Rubik', sans-serif;
-  font-weight: 700;
-  font-size: var(--text-big-size);
-  line-height: var(--text-big-size-lh);
+  @include font-large;
 }
 
 h2 {
-  font-family: 'Rubik', sans-serif;
-  font-weight: 700;
-  font-size: 1.333333em;
-  line-height: 1.5em;
+  @include font-medium;
 }
 
 .blue {
-  color: var(--color-blue);
+  color: $blue-color;
 }
 
 .container {
