@@ -5,29 +5,28 @@
   @include title-hover;
 
   @include media-mobile {
-    margin-top: 1.5em;
+    margin-top: 1.5rem;
   };
 }
 
 .skillsCard {
-  padding: 0.5em 0;
+  padding: 0.5rem 0;
   border-bottom: 1px dashed #a9a9a9;
 
   &__category {
     line-height: var(--text-lh);
     color: $blue-color;
-    margin-bottom: 0.5em;
+    margin-bottom: 0.5rem;
 
   }
 
   &__skills {
-    display: flex;
-    flex-wrap: wrap;
+    @include flexbox(row, flex-start, flex-start, wrap);
     gap: 10px;
 
     & p {
-      font-size: var(--text-size-small);
-      font-weight: 700;
+      @include font-mini;
+      font-weight: bold;
       color: $lightened-black-color;
       border-bottom: 1px solid #a9a9a9;
       padding: 5px 8px;

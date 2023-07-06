@@ -5,7 +5,7 @@ import cn from 'classnames'
 
 const BasicInfo = (): JSX.Element => {
   return (
-    <div className={cn(styles.basicInfo, 'wrapper')}>
+    <div className={cn(styles.basicInfo)}>
       <div className={styles.basic}>
         <h1 className={styles.fullName}>Anton skoromniy</h1>
         <p className={cn('blue', styles.description)}>Middle Front End Developer</p>

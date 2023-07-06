@@ -18,87 +18,81 @@
   padding: 0.5em 0;
 
   &__position {
-    font-size: var(--text-size);
-    line-height: var(--text-lh);
+    @include font-normal;
   }
 
   &__companyName {
-    font-size: var(--text-size-small-lg);
-    line-height: var(--text-size-small-lg-lh);
-    font-weight: 700;
+    @include font-extra-small;
+    font-weight: bold;
     color: $blue-color;
-    margin-top: 0.2em;
+    margin: 0.3em 0;
   }
 
   &__dateAndLocation {
-    display: flex;
-    font-size: var(--text-size-small-lg);
-    line-height: var(--text-size-small-lg-lh);
-    font-weight: 400;
+    @include font-mini;
+    @include flexbox(row, flex-start, center, wrap);
     color: $lightened-black-color;
-    margin-top: 0.2em;
+    font-weight: 400;
+    margin-top: 0.3rem;
 
     & .dateAndLocation__date {
-      display: flex;
-      flex-wrap: wrap;
+      @include flexbox(row, flex-start, center, wrap);
       padding-right: 2em;
       white-space: pre-wrap;
 
       &__dateIcon {
-        display: flex;
+        @include flexbox(row, flex-start, center, nowrap);
         padding-right: 0.5em;
       }
     }
 
     & .dateAndLocation__location {
       &__link {
-        display: flex;
-        align-items: center;
-        color: $lightened-black-color;
+        @include flexbox(row, flex-start, center, nowrap);
         @include a-hover-blue;
+        color: $lightened-black-color;
 
         &__locationIcon {
-          display: flex;
-          padding-right: 0.5em;
+          @include flexbox(row, flex-start, center, nowrap);
           color: $lightened-black-color;
+          padding-right: 0.5em;
         }
       }
     }
   }
 
   &__description {
+    @include font-extra-small;
     margin-top: 0.2em;
-    font-size: var(--text-size-small-lg);
-    line-height: var(--text-size-small-lg-lh);
     color: $lightened-black-color;
-
+    line-height: 120%;
+ 
     & span {
-      font-weight: 700;
+      font-weight: bold;
     }
 
     & a {
+      @include a-hover-blue;
       position: relative;
       color: $lightened-black-color;
       text-decoration: underline;
-      @include a-hover-blue;
     }
   }
 
   &__technologies {
-    font-size: var(--text-size-small-lg);
-    line-height: var(--text-size-small-lg-lh);
+    @include font-mini;
     color: $lightened-black-color;
 
     & span {
-      font-weight: 700;
+      font-weight: bold;
     }
   }
 
   &__activity {
-    margin-top: 0.2em;
-    font-size: var(--text-size-small-lg);
-    line-height: var(--text-size-small-lg-lh);
+    @include font-mini;
+    line-height: 110%;
     color: $lightened-black-color;
+    margin-top: 0.2em;
     padding-left: 2px;
 
     & div {
@@ -108,12 +102,12 @@
       &:before {
         content: '';
         position: absolute;
-        top: 50%;
-        left: 0;
-        transform: translateY(-50%);
         width: 4px;
         height: 4px;
+        top: 50%;
+        left: 0;
         border-radius: 100%;
+        transform: translateY(-50%);
         background-color: $lightened-black-color;;
       }
     }
