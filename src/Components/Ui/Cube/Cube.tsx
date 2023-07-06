@@ -2,7 +2,7 @@ import styles from './Cube.module.scss'
 import cn from 'classnames'
 import { useEffect, useRef, useState, TouchEvent, MouseEvent } from 'react'
 import Emergence from '../../Emergence/Emergence'
-import { IDirections } from './Cube.props'
+import { ICubeFaces, IDirections } from './Cube.props'
 
 const Cube = () => {
   const [isVisible, setIsVisible] = useState(false)
@@ -42,7 +42,7 @@ const Cube = () => {
     const { x, y } = getCubeCoord(event)
     cubeRef.current?.style.setProperty('--cubeYRotate', x + 'deg')
     cubeRef.current?.style.setProperty('--cubeXRotate', y + 'deg')
-     
+
     innerCubeRef.current?.style.setProperty('--cubeYRotate', x + 'deg')
     innerCubeRef.current?.style.setProperty('--cubeXRotate', y * -1 + 'deg')
   }
@@ -86,6 +86,19 @@ const Cube = () => {
     return () => clearInterval(intervalRef.current as NodeJS.Timeout)
   }, [isVisible])
 
+  const CubeFaces = ({ ...props }: ICubeFaces): JSX.Element => {
+    return (
+      <>
+        <div className={cn(styles.cube__face, styles.cube__face_front)}>{props.front_name}</div>
+        <div className={cn(styles.cube__face, styles.cube__face_back)}>{props.back_name}</div>
+        <div className={cn(styles.cube__face, styles.cube__face_right)}>{props.right_name}</div>
+        <div className={cn(styles.cube__face, styles.cube__face_left)}>{props.left_name}</div>
+        <div className={cn(styles.cube__face, styles.cube__face_top)}>{props.top_name}</div>
+        <div className={cn(styles.cube__face, styles.cube__face_bottom)}>{props.back_name}</div>
+      </>
+    )
+  }
+
   return (
     <Emergence callbackFn={setIsVisible}>
       <div className={styles.scene}>
@@ -99,20 +112,25 @@ const Cube = () => {
           onTouchEnd={unfrezeAutoRotation}
           ref={cubeRef}
         >
-          <div className={cn(styles.cube__face, styles.cube__face_front)}>Frontend</div>
-          <div className={cn(styles.cube__face, styles.cube__face_back)}>Backend</div>
-          <div className={cn(styles.cube__face, styles.cube__face_right)}>JavaScript</div>
-          <div className={cn(styles.cube__face, styles.cube__face_left)}>CSS</div>
-          <div className={cn(styles.cube__face, styles.cube__face_top)}>HTMl</div>
-          <div className={cn(styles.cube__face, styles.cube__face_bottom)}>React</div>
-
-          <div className={cn(styles.cube, styles.cube__innerCube)} ref={innerCubeRef}>
-            <div className={cn(styles.cube__face, styles.cube__face_front)}>TypeScript</div>
-            <div className={cn(styles.cube__face, styles.cube__face_back)}>SCSS</div>
-            <div className={cn(styles.cube__face, styles.cube__face_right)}>GSAP</div>
-            <div className={cn(styles.cube__face, styles.cube__face_left)}>NestJS</div>
-            <div className={cn(styles.cube__face, styles.cube__face_top)}>Redux</div>
-            <div className={cn(styles.cube__face, styles.cube__face_bottom)}>NextJS</div>
+          <CubeFaces
+            front_name='Frontend'
+            back_name='Backend'
+            right_name='JavaScript'
+            left_name='CSS'
+            top_name='HTML'
+            bottom_name='React'
+          />
+          <div className={styles.innerCubeWrapper}>
+            <div className={cn(styles.cube, styles.cube__innerCube)} ref={innerCubeRef}>
+              <CubeFaces
+                front_name='TypeScript'
+                back_name='SCSS'
+                right_name='GSAP'
+                left_name='NestJS'
+                top_name='Redux'
+                bottom_name='NextJS'
+              />
+            </div>
           </div>
         </div>
       </div>
