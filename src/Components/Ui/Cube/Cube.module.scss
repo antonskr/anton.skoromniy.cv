@@ -1,4 +1,5 @@
 @import  "../../../variables.scss";
+@import  "../../../mixins.scss";
 .scene {
   --scene-width: 200px;
   --cube-z-offset: 100px;
@@ -30,6 +31,13 @@
     &:hover {
       & .innerCubeWrapper {
         transform: translateX(-100%);
+      }
+
+      @include media-mobile {
+        & .innerCubeWrapper {
+          // clean hover effect on mobile
+          transform: translateX(0);
+        }
       }
     }
 

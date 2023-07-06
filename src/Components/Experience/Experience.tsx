@@ -94,7 +94,7 @@ const Experience = (): JSX.Element => {
         location_name='Kharkiv, Ukraine'
         location_link='/'
         description={`Developed the websites: <br/>
-          <a href='https://wde3d.com' target='_blank' rel='noreferrer'>WDE3D</a>
+          <a href='https://wde3d.com' target='_blank' rel='noreferrer'>WDE3D</a>w
           <a href='https://zagroza.agency' target='_blank' rel='noreferrer'>Zagroza-agency</a> <br/>
           <a href='https://volunteering-ukraine.com/' target='_blank' rel='noreferrer'>volunteering-ukraine</a> - volunteer platform <br/>
           <a href='https://www.milibris.com//' target='_blank' rel='noreferrer'>Milibris</a> - Website for a company that improves digital publishing and implements distribution solutions.
