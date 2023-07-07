@@ -1,16 +1,14 @@
-import './Fonts/index.scss'
+import "./Fonts/index.scss";
 
-import Layout from './Components/Layout/Layout'
-import BasicInfo from './Components/BasicInfo/BasicInfo'
-import Column from './Column/Column'
+import Layout from "./Components/Layout/Layout";
+import BasicInfo from "./Components/BasicInfo/BasicInfo";
+import Column from "./Components/Column/Column";
 
-function App(): JSX.Element {
+export function App(): JSX.Element {
   return (
     <Layout>
       <BasicInfo />
       <Column />
     </Layout>
-  )
+  );
 }
-
-export default App
