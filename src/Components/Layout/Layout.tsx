@@ -1,16 +1,13 @@
-import { ReactNode } from 'react';
-import '../../global.scss'
+import { ReactNode } from "react";
+import "../../global.scss";
 
 interface LayoutProps {
-    children: ReactNode
+  children: ReactNode;
 }
 
-const Layout = ({children}: LayoutProps):JSX.Element => {
-    return (
-        <div className={'container'}>
-            { children }
-        </div>
-    )
-}
+const Layout = ({ children }: LayoutProps): JSX.Element => {
+  return <div className={"container"}>{children}</div>;
+};
 
+export default Layout;
 export default Layout;

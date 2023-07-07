@@ -1,8 +1,8 @@
-import './Fonts/index.scss'
+import "./Fonts/index.scss";
 
-import Layout from './Components/Layout/Layout'
-import BasicInfo from './Components/BasicInfo/BasicInfo'
-import Column from './Components/Column/Column'
+import Layout from "./Components/Layout/Layout";
+import BasicInfo from "./Components/BasicInfo/BasicInfo";
+import Column from "./Components/Column/Column";
 
 export function App(): JSX.Element {
   return (
@@ -10,6 +10,5 @@ export function App(): JSX.Element {
       <BasicInfo />
       <Column />
     </Layout>
-  )
+  );
 }
-
