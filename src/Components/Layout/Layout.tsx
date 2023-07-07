@@ -10,4 +10,3 @@ const Layout = ({ children }: LayoutProps): JSX.Element => {
 };
 
 export default Layout;
-export default Layout;
