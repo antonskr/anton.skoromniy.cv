@@ -398,6 +398,22 @@ exports.unstable_renderSubtreeIntoContainer=function(a,b,c,d){if(!pl(c))throw Er
 
 /***/ }),
 
+/***/ 745:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+var __webpack_unused_export__;
+
+
+var m = __webpack_require__(935);
+if (true) {
+  exports.s = m.createRoot;
+  __webpack_unused_export__ = m.hydrateRoot;
+} else { var i; }
+
+
+/***/ }),
+
 /***/ 935:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -649,8 +665,8 @@ var __webpack_exports__ = {};
 (() => {
 "use strict";
 
-// EXTERNAL MODULE: ./node_modules/react-dom/index.js
-var react_dom = __webpack_require__(935);
+// EXTERNAL MODULE: ./node_modules/react-dom/client.js
+var client = __webpack_require__(745);
 ;// CONCATENATED MODULE: ./src/Fonts/index.scss
 // extracted by mini-css-extract-plugin
 /* harmony default export */ const Fonts = ({});
@@ -659,10 +675,11 @@ var jsx_runtime = __webpack_require__(893);
 ;// CONCATENATED MODULE: ./src/Components/Layout/Layout.tsx
 
 
+
 var Layout = function Layout(_ref) {
   var children = _ref.children;
   return /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
-    className: 'container',
+    className: "container",
     children: children
   });
 };
@@ -6224,7 +6241,7 @@ var Experience = function Experience() {
 /* harmony default export */ const Experience_Experience = (Experience);
 ;// CONCATENATED MODULE: ./src/Components/Skills/Skills.module.scss
 // extracted by mini-css-extract-plugin
-/* harmony default export */ const Skills_module = ({"skills":"MASEC_fe","skillsCard":"HvwSpq3I","skillsCard__category":"dL3uLy8h","skillsCard__skills":"nQk5Qsgx","skillsCard__skills__visible":"Gm0GJmis","skillsCard__skills__item":"wVQshnX9"});
+/* harmony default export */ const Skills_module = ({"skills":"MASEC_fe","skillsCard":"HvwSpq3I","skillsCard__category":"dL3uLy8h","skillsCard__skills":"nQk5Qsgx","skillsCard__skills__visible":"Gm0GJmis","skillsCard__skills__item":"wVQshnX9","changeColor":"Yk4TS1b6"});
 ;// CONCATENATED MODULE: ./src/Components/Skills/Skills.tsx
 function Skills_typeof(obj) { "@babel/helpers - typeof"; return Skills_typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, Skills_typeof(obj); }
 function Skills_defineProperty(obj, key, value) { key = Skills_toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
@@ -6284,7 +6301,8 @@ var SkillCard = function SkillCard(_ref) {
           return /*#__PURE__*/(0,jsx_runtime.jsx)("p", {
             className: Skills_module.skillsCard__skills__item,
             style: {
-              transitionDelay: "".concat(idx * 0.1, "s")
+              transitionDelay: "".concat(idx * 0.1, "s"),
+              animationDelay: "".concat(idx * 0.1, "s")
             },
             children: skill
           }, skill);
@@ -6670,7 +6688,6 @@ var Column = function Column() {
 
 
 
-
 function App() {
   return /*#__PURE__*/(0,jsx_runtime.jsxs)(Layout_Layout, {
     children: [/*#__PURE__*/(0,jsx_runtime.jsx)(BasicInfo_BasicInfo, {}), /*#__PURE__*/(0,jsx_runtime.jsx)(Column_Column, {})]
@@ -6678,9 +6695,11 @@ function App() {
 }
 ;// CONCATENATED MODULE: ./src/index.tsx
 
+var container = document.getElementById('root');
 
 
-react_dom.render( /*#__PURE__*/(0,jsx_runtime.jsx)(App, {}), document.getElementById('root'));
+var root = (0,client/* createRoot */.s)(container);
+root.render( /*#__PURE__*/(0,jsx_runtime.jsx)(App, {}));
 })();
 
 /******/ })()
