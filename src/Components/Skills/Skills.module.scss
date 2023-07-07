@@ -20,8 +20,6 @@
 
   }
 
-
-
   &__skills {
     @include flexbox(row, flex-start, flex-start, wrap);
     gap: 10px;
@@ -30,6 +28,15 @@
       & .skillsCard__skills__item {
         opacity: 1;
         transform: translateY(0) scale(1);
+        animation: changeColor 1s ease-in-out both;
+        @keyframes changeColor {
+          0% {
+            color: $blue-color
+          }
+          100% {
+            color: $lightened-black-color;;
+          }
+        }
       }
     }
 
@@ -41,7 +48,7 @@
       padding: 5px 8px;
       transition: 300ms ease-in-out;
       opacity: 0;
-      transform: translateY(-100%) scale(0);    
+      transform: translateY(-100%) scale(0);   
     }
   }
 }

@@ -48,6 +48,7 @@ const SkillCard = ({ category, skills }: ISkillsCard) => {
                 className={styles.skillsCard__skills__item}
                 style={{
                   transitionDelay: `${idx * 0.1}s`,
+                  animationDelay: `${idx * 0.1}s`,
                 }}
               >
                 {skill}
