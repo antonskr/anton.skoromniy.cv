@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import "../../Fonts/index.scss";
 import "../../global.scss";
 
 interface LayoutProps {
