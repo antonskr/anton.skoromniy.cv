@@ -1,0 +1,30 @@
+@import "../../../variables";
+@import "../../../mixins";
+.titleWithLine {
+  $border-height: 3px;
+  position: relative;
+  padding-bottom: 3px;
+  border-bottom: $border-height solid #000;
+
+  &::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 3px;
+    left: 0;
+    bottom: -$border-height;
+    background-color: $blue-color;
+    transition: 300ms;
+    transform: rotateY(-90deg);
+  }
+
+  &.titleWithLine_visible {
+    &::before {
+      transform: rotateY(0);
+    }
+  }
+
+  & h2 {
+    text-transform: uppercase;
+  }
+}

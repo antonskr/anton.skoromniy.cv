@@ -1,0 +1,95 @@
+@import  "../../../variables.scss";
+@import  "../../../mixins.scss";
+.scene {
+  --scene-width: 200px;
+  --cube-z-offset: 100px;
+  width: var(--scene-width);
+  height: var(--scene-width);
+  perspective: 600px;
+  margin: calc(var(--scene-width) / 10 + 1.5em) auto 0 auto;
+
+  @mixin cube-faces ($cube-z-offset) {
+    .cube__face_front  { transform: rotateY(  0deg) translateZ($cube-z-offset); }
+    .cube__face_right  { transform: rotateY( 90deg) translateZ($cube-z-offset); }
+    .cube__face_back   { transform: rotateY(180deg) translateZ($cube-z-offset); }
+    .cube__face_left   { transform: rotateY(-90deg) translateZ($cube-z-offset); }
+    .cube__face_top    { transform: rotateX( 90deg) translateZ($cube-z-offset); }
+    .cube__face_bottom { transform: rotateX(-90deg) translateZ($cube-z-offset); }
+  }
+
+  & .cube {
+    --cubeXRotate: 0deg;
+    --cubeYRotate: 0deg;
+
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(var(--cubeXRotate)) rotateY(var(--cubeYRotate));
+    transition: 1000ms ease;
+
+    &:hover {
+      & .innerCubeWrapper {
+        transform: translateX(-100%);
+      }
+
+      @include media-mobile {
+        & .innerCubeWrapper {
+          // clean hover effect on mobile
+          transform: translateX(0);
+        }
+      }
+    }
+
+    & .innerCubeWrapper {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      transform: translateX(0);
+      transform-style: preserve-3d;
+      transition: 3s ease-in-out;
+    }
+
+    &__innerCube {
+      --cubeXRotate: 0deg;
+      --cubeYRotate: 0deg;
+
+      width: 50%;
+      height: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform-style: preserve-3d;
+      transition: 2s ease-in-out;
+      transform: translate3d(-50%, -50%, 0) rotateX(var(--cubeXRotate)) rotateY(var(--cubeYRotate));
+      @include cube-faces(calc(var(--cube-z-offset) / 2)); // half the z-offset because the inner cube is half the size
+
+      & .cube__face {
+        font-size: 0.8em;
+        color: #fff;
+        background-color: $blue-color;
+        border: 1px solid $blue-color;
+      }
+    }
+  }
+
+  & .cube__face {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    font-size: 1.3em;
+    font-weight: 700;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border: 1px solid #d9d9d9;
+    color: #384347FF;
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+
+  @include cube-faces(var(--cube-z-offset));
+}
+
+

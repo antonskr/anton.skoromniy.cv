@@ -1,0 +1,47 @@
+@import "../../mixins";
+@import "../../variables";
+
+.item {
+  display: flex;
+  height: 1em;
+  transition: 200ms;
+
+  & .contactValue {
+    @include font-small;
+
+    & a {
+      display: flex;
+      white-space: nowrap;
+      transition: 200ms;
+
+      & .icon {
+        transition: 200ms;
+      }
+
+      & > span {
+        padding-left: 0.5em;
+        align-self: center;
+      }
+
+      &:hover {
+        color: $blue-color;
+
+        & .icon {
+          transform: scale(1.1);
+        }
+      }
+    }
+  }
+}
+
+.contacts {
+  padding-top: 0.5em;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 0.3em;
+
+  @include media-mobile {
+      grid-template-columns: 1fr;
+  }
+}

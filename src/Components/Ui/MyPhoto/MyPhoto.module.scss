@@ -1,0 +1,41 @@
+@import "../../../mixins";
+
+.photo {
+  position: relative;
+  width: 9em;
+  height: 9em;
+  filter: url('#svg_filter');
+  transform: translateY(-100%) scale(0.5);
+  opacity: 0;
+  animation-name: move;
+  animation-duration: 1s;
+  animation-fill-mode: forwards;
+  transition: 200ms;
+  transform-style: preserve-3d;
+
+  @include media-mobile-sm {
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  @keyframes move {
+    0% {
+      transform: translateY(-100%) scale(0.5);
+      opacity: 0;
+    }
+
+    100% {
+      transform: translateY(0%) scale(1);
+      opacity: 1;
+    }
+  }
+
+  & > img {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 0.5em;
+    object-fit: cover;
+  }
+
+}

@@ -1,0 +1,115 @@
+@import "../../variables";
+@import "../../mixins";
+
+@mixin a-hover-blue {
+  transition: 300ms;
+
+  &:hover {
+    color: $blue-color;
+  }
+}
+
+.experience {
+  margin-top: 1.5em;
+  @include title-hover;
+}
+
+.card {
+  padding: 0.5em 0;
+
+  &__position {
+    @include font-normal;
+  }
+
+  &__companyName {
+    @include font-extra-small;
+    font-weight: bold;
+    color: $blue-color;
+    margin: 0.3em 0;
+  }
+
+  &__dateAndLocation {
+    @include font-mini;
+    @include flexbox(row, flex-start, center, wrap);
+    color: $lightened-black-color;
+    font-weight: 400;
+    margin-top: 0.3rem;
+
+    & .dateAndLocation__date {
+      @include flexbox(row, flex-start, center, wrap);
+      padding-right: 2em;
+      white-space: pre-wrap;
+
+      &__dateIcon {
+        @include flexbox(row, flex-start, center, nowrap);
+        padding-right: 0.5em;
+      }
+    }
+
+    & .dateAndLocation__location {
+      &__link {
+        @include flexbox(row, flex-start, center, nowrap);
+        @include a-hover-blue;
+        color: $lightened-black-color;
+
+        &__locationIcon {
+          @include flexbox(row, flex-start, center, nowrap);
+          color: $lightened-black-color;
+          padding-right: 0.5em;
+        }
+      }
+    }
+  }
+
+  &__description {
+    @include font-extra-small;
+    margin-top: 0.2em;
+    color: $lightened-black-color;
+    line-height: 120%;
+ 
+    & span {
+      font-weight: bold;
+    }
+
+    & a {
+      @include a-hover-blue;
+      position: relative;
+      color: $lightened-black-color;
+      text-decoration: underline;
+    }
+  }
+
+  &__technologies {
+    @include font-mini;
+    color: $lightened-black-color;
+
+    & span {
+      font-weight: bold;
+    }
+  }
+
+  &__activity {
+    @include font-mini;
+    line-height: 110%;
+    color: $lightened-black-color;
+    margin-top: 0.2em;
+    padding-left: 2px;
+
+    & div {
+      position: relative;
+      padding-left: 1em;
+
+      &:before {
+        content: '';
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        top: 50%;
+        left: 0;
+        border-radius: 100%;
+        transform: translateY(-50%);
+        background-color: $lightened-black-color;;
+      }
+    }
+  }
+}
