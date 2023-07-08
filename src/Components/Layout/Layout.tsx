@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { MouseEventHandler, ReactNode, useRef } from "react";
 import "../../Fonts/index.scss";
 import "../../global.scss";
 import useWindowDimensions from "../../Hooks/UseWindowDimensions";
@@ -11,6 +11,7 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps): JSX.Element => {
   const { width } = useWindowDimensions();
+  const containerRef = useRef<HTMLDivElement>(null);
   const isParticles = width >= 1150;
 
   return (

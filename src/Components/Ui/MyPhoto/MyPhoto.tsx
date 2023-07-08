@@ -5,7 +5,7 @@ const MyPhoto = () => {
   return (
     <>
       <div className={styles.photo}>
-        <img src={photo} />
+        <img src={photo} alt='photo'/>
         <div className={styles.photo__verge}></div>
       </div>
 
