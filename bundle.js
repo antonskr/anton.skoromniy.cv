@@ -67,6 +67,507 @@ var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
 
 /***/ }),
 
+/***/ 310:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+/* globals Symbol: false, Uint8Array: false, WeakMap: false */
+/*!
+ * deep-eql
+ * Copyright(c) 2013 Jake Luer <jake@alogicalparadox.com>
+ * MIT Licensed
+ */
+
+var type = __webpack_require__(13);
+function FakeMap() {
+  this._key = 'chai/deep-eql__' + Math.random() + Date.now();
+}
+
+FakeMap.prototype = {
+  get: function get(key) {
+    return key[this._key];
+  },
+  set: function set(key, value) {
+    if (Object.isExtensible(key)) {
+      Object.defineProperty(key, this._key, {
+        value: value,
+        configurable: true,
+      });
+    }
+  },
+};
+
+var MemoizeMap = typeof WeakMap === 'function' ? WeakMap : FakeMap;
+/*!
+ * Check to see if the MemoizeMap has recorded a result of the two operands
+ *
+ * @param {Mixed} leftHandOperand
+ * @param {Mixed} rightHandOperand
+ * @param {MemoizeMap} memoizeMap
+ * @returns {Boolean|null} result
+*/
+function memoizeCompare(leftHandOperand, rightHandOperand, memoizeMap) {
+  // Technically, WeakMap keys can *only* be objects, not primitives.
+  if (!memoizeMap || isPrimitive(leftHandOperand) || isPrimitive(rightHandOperand)) {
+    return null;
+  }
+  var leftHandMap = memoizeMap.get(leftHandOperand);
+  if (leftHandMap) {
+    var result = leftHandMap.get(rightHandOperand);
+    if (typeof result === 'boolean') {
+      return result;
+    }
+  }
+  return null;
+}
+
+/*!
+ * Set the result of the equality into the MemoizeMap
+ *
+ * @param {Mixed} leftHandOperand
+ * @param {Mixed} rightHandOperand
+ * @param {MemoizeMap} memoizeMap
+ * @param {Boolean} result
+*/
+function memoizeSet(leftHandOperand, rightHandOperand, memoizeMap, result) {
+  // Technically, WeakMap keys can *only* be objects, not primitives.
+  if (!memoizeMap || isPrimitive(leftHandOperand) || isPrimitive(rightHandOperand)) {
+    return;
+  }
+  var leftHandMap = memoizeMap.get(leftHandOperand);
+  if (leftHandMap) {
+    leftHandMap.set(rightHandOperand, result);
+  } else {
+    leftHandMap = new MemoizeMap();
+    leftHandMap.set(rightHandOperand, result);
+    memoizeMap.set(leftHandOperand, leftHandMap);
+  }
+}
+
+/*!
+ * Primary Export
+ */
+
+module.exports = deepEqual;
+module.exports.MemoizeMap = MemoizeMap;
+
+/**
+ * Assert deeply nested sameValue equality between two objects of any type.
+ *
+ * @param {Mixed} leftHandOperand
+ * @param {Mixed} rightHandOperand
+ * @param {Object} [options] (optional) Additional options
+ * @param {Array} [options.comparator] (optional) Override default algorithm, determining custom equality.
+ * @param {Array} [options.memoize] (optional) Provide a custom memoization object which will cache the results of
+    complex objects for a speed boost. By passing `false` you can disable memoization, but this will cause circular
+    references to blow the stack.
+ * @return {Boolean} equal match
+ */
+function deepEqual(leftHandOperand, rightHandOperand, options) {
+  // If we have a comparator, we can't assume anything; so bail to its check first.
+  if (options && options.comparator) {
+    return extensiveDeepEqual(leftHandOperand, rightHandOperand, options);
+  }
+
+  var simpleResult = simpleEqual(leftHandOperand, rightHandOperand);
+  if (simpleResult !== null) {
+    return simpleResult;
+  }
+
+  // Deeper comparisons are pushed through to a larger function
+  return extensiveDeepEqual(leftHandOperand, rightHandOperand, options);
+}
+
+/**
+ * Many comparisons can be canceled out early via simple equality or primitive checks.
+ * @param {Mixed} leftHandOperand
+ * @param {Mixed} rightHandOperand
+ * @return {Boolean|null} equal match
+ */
+function simpleEqual(leftHandOperand, rightHandOperand) {
+  // Equal references (except for Numbers) can be returned early
+  if (leftHandOperand === rightHandOperand) {
+    // Handle +-0 cases
+    return leftHandOperand !== 0 || 1 / leftHandOperand === 1 / rightHandOperand;
+  }
+
+  // handle NaN cases
+  if (
+    leftHandOperand !== leftHandOperand && // eslint-disable-line no-self-compare
+    rightHandOperand !== rightHandOperand // eslint-disable-line no-self-compare
+  ) {
+    return true;
+  }
+
+  // Anything that is not an 'object', i.e. symbols, functions, booleans, numbers,
+  // strings, and undefined, can be compared by reference.
+  if (isPrimitive(leftHandOperand) || isPrimitive(rightHandOperand)) {
+    // Easy out b/c it would have passed the first equality check
+    return false;
+  }
+  return null;
+}
+
+/*!
+ * The main logic of the `deepEqual` function.
+ *
+ * @param {Mixed} leftHandOperand
+ * @param {Mixed} rightHandOperand
+ * @param {Object} [options] (optional) Additional options
+ * @param {Array} [options.comparator] (optional) Override default algorithm, determining custom equality.
+ * @param {Array} [options.memoize] (optional) Provide a custom memoization object which will cache the results of
+    complex objects for a speed boost. By passing `false` you can disable memoization, but this will cause circular
+    references to blow the stack.
+ * @return {Boolean} equal match
+*/
+function extensiveDeepEqual(leftHandOperand, rightHandOperand, options) {
+  options = options || {};
+  options.memoize = options.memoize === false ? false : options.memoize || new MemoizeMap();
+  var comparator = options && options.comparator;
+
+  // Check if a memoized result exists.
+  var memoizeResultLeft = memoizeCompare(leftHandOperand, rightHandOperand, options.memoize);
+  if (memoizeResultLeft !== null) {
+    return memoizeResultLeft;
+  }
+  var memoizeResultRight = memoizeCompare(rightHandOperand, leftHandOperand, options.memoize);
+  if (memoizeResultRight !== null) {
+    return memoizeResultRight;
+  }
+
+  // If a comparator is present, use it.
+  if (comparator) {
+    var comparatorResult = comparator(leftHandOperand, rightHandOperand);
+    // Comparators may return null, in which case we want to go back to default behavior.
+    if (comparatorResult === false || comparatorResult === true) {
+      memoizeSet(leftHandOperand, rightHandOperand, options.memoize, comparatorResult);
+      return comparatorResult;
+    }
+    // To allow comparators to override *any* behavior, we ran them first. Since it didn't decide
+    // what to do, we need to make sure to return the basic tests first before we move on.
+    var simpleResult = simpleEqual(leftHandOperand, rightHandOperand);
+    if (simpleResult !== null) {
+      // Don't memoize this, it takes longer to set/retrieve than to just compare.
+      return simpleResult;
+    }
+  }
+
+  var leftHandType = type(leftHandOperand);
+  if (leftHandType !== type(rightHandOperand)) {
+    memoizeSet(leftHandOperand, rightHandOperand, options.memoize, false);
+    return false;
+  }
+
+  // Temporarily set the operands in the memoize object to prevent blowing the stack
+  memoizeSet(leftHandOperand, rightHandOperand, options.memoize, true);
+
+  var result = extensiveDeepEqualByType(leftHandOperand, rightHandOperand, leftHandType, options);
+  memoizeSet(leftHandOperand, rightHandOperand, options.memoize, result);
+  return result;
+}
+
+function extensiveDeepEqualByType(leftHandOperand, rightHandOperand, leftHandType, options) {
+  switch (leftHandType) {
+    case 'String':
+    case 'Number':
+    case 'Boolean':
+    case 'Date':
+      // If these types are their instance types (e.g. `new Number`) then re-deepEqual against their values
+      return deepEqual(leftHandOperand.valueOf(), rightHandOperand.valueOf());
+    case 'Promise':
+    case 'Symbol':
+    case 'function':
+    case 'WeakMap':
+    case 'WeakSet':
+      return leftHandOperand === rightHandOperand;
+    case 'Error':
+      return keysEqual(leftHandOperand, rightHandOperand, [ 'name', 'message', 'code' ], options);
+    case 'Arguments':
+    case 'Int8Array':
+    case 'Uint8Array':
+    case 'Uint8ClampedArray':
+    case 'Int16Array':
+    case 'Uint16Array':
+    case 'Int32Array':
+    case 'Uint32Array':
+    case 'Float32Array':
+    case 'Float64Array':
+    case 'Array':
+      return iterableEqual(leftHandOperand, rightHandOperand, options);
+    case 'RegExp':
+      return regexpEqual(leftHandOperand, rightHandOperand);
+    case 'Generator':
+      return generatorEqual(leftHandOperand, rightHandOperand, options);
+    case 'DataView':
+      return iterableEqual(new Uint8Array(leftHandOperand.buffer), new Uint8Array(rightHandOperand.buffer), options);
+    case 'ArrayBuffer':
+      return iterableEqual(new Uint8Array(leftHandOperand), new Uint8Array(rightHandOperand), options);
+    case 'Set':
+      return entriesEqual(leftHandOperand, rightHandOperand, options);
+    case 'Map':
+      return entriesEqual(leftHandOperand, rightHandOperand, options);
+    case 'Temporal.PlainDate':
+    case 'Temporal.PlainTime':
+    case 'Temporal.PlainDateTime':
+    case 'Temporal.Instant':
+    case 'Temporal.ZonedDateTime':
+    case 'Temporal.PlainYearMonth':
+    case 'Temporal.PlainMonthDay':
+      return leftHandOperand.equals(rightHandOperand);
+    case 'Temporal.Duration':
+      return leftHandOperand.total('nanoseconds') === rightHandOperand.total('nanoseconds');
+    case 'Temporal.TimeZone':
+    case 'Temporal.Calendar':
+      return leftHandOperand.toString() === rightHandOperand.toString();
+    default:
+      return objectEqual(leftHandOperand, rightHandOperand, options);
+  }
+}
+
+/*!
+ * Compare two Regular Expressions for equality.
+ *
+ * @param {RegExp} leftHandOperand
+ * @param {RegExp} rightHandOperand
+ * @return {Boolean} result
+ */
+
+function regexpEqual(leftHandOperand, rightHandOperand) {
+  return leftHandOperand.toString() === rightHandOperand.toString();
+}
+
+/*!
+ * Compare two Sets/Maps for equality. Faster than other equality functions.
+ *
+ * @param {Set} leftHandOperand
+ * @param {Set} rightHandOperand
+ * @param {Object} [options] (Optional)
+ * @return {Boolean} result
+ */
+
+function entriesEqual(leftHandOperand, rightHandOperand, options) {
+  // IE11 doesn't support Set#entries or Set#@@iterator, so we need manually populate using Set#forEach
+  if (leftHandOperand.size !== rightHandOperand.size) {
+    return false;
+  }
+  if (leftHandOperand.size === 0) {
+    return true;
+  }
+  var leftHandItems = [];
+  var rightHandItems = [];
+  leftHandOperand.forEach(function gatherEntries(key, value) {
+    leftHandItems.push([ key, value ]);
+  });
+  rightHandOperand.forEach(function gatherEntries(key, value) {
+    rightHandItems.push([ key, value ]);
+  });
+  return iterableEqual(leftHandItems.sort(), rightHandItems.sort(), options);
+}
+
+/*!
+ * Simple equality for flat iterable objects such as Arrays, TypedArrays or Node.js buffers.
+ *
+ * @param {Iterable} leftHandOperand
+ * @param {Iterable} rightHandOperand
+ * @param {Object} [options] (Optional)
+ * @return {Boolean} result
+ */
+
+function iterableEqual(leftHandOperand, rightHandOperand, options) {
+  var length = leftHandOperand.length;
+  if (length !== rightHandOperand.length) {
+    return false;
+  }
+  if (length === 0) {
+    return true;
+  }
+  var index = -1;
+  while (++index < length) {
+    if (deepEqual(leftHandOperand[index], rightHandOperand[index], options) === false) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/*!
+ * Simple equality for generator objects such as those returned by generator functions.
+ *
+ * @param {Iterable} leftHandOperand
+ * @param {Iterable} rightHandOperand
+ * @param {Object} [options] (Optional)
+ * @return {Boolean} result
+ */
+
+function generatorEqual(leftHandOperand, rightHandOperand, options) {
+  return iterableEqual(getGeneratorEntries(leftHandOperand), getGeneratorEntries(rightHandOperand), options);
+}
+
+/*!
+ * Determine if the given object has an @@iterator function.
+ *
+ * @param {Object} target
+ * @return {Boolean} `true` if the object has an @@iterator function.
+ */
+function hasIteratorFunction(target) {
+  return typeof Symbol !== 'undefined' &&
+    typeof target === 'object' &&
+    typeof Symbol.iterator !== 'undefined' &&
+    typeof target[Symbol.iterator] === 'function';
+}
+
+/*!
+ * Gets all iterator entries from the given Object. If the Object has no @@iterator function, returns an empty array.
+ * This will consume the iterator - which could have side effects depending on the @@iterator implementation.
+ *
+ * @param {Object} target
+ * @returns {Array} an array of entries from the @@iterator function
+ */
+function getIteratorEntries(target) {
+  if (hasIteratorFunction(target)) {
+    try {
+      return getGeneratorEntries(target[Symbol.iterator]());
+    } catch (iteratorError) {
+      return [];
+    }
+  }
+  return [];
+}
+
+/*!
+ * Gets all entries from a Generator. This will consume the generator - which could have side effects.
+ *
+ * @param {Generator} target
+ * @returns {Array} an array of entries from the Generator.
+ */
+function getGeneratorEntries(generator) {
+  var generatorResult = generator.next();
+  var accumulator = [ generatorResult.value ];
+  while (generatorResult.done === false) {
+    generatorResult = generator.next();
+    accumulator.push(generatorResult.value);
+  }
+  return accumulator;
+}
+
+/*!
+ * Gets all own and inherited enumerable keys from a target.
+ *
+ * @param {Object} target
+ * @returns {Array} an array of own and inherited enumerable keys from the target.
+ */
+function getEnumerableKeys(target) {
+  var keys = [];
+  for (var key in target) {
+    keys.push(key);
+  }
+  return keys;
+}
+
+function getEnumerableSymbols(target) {
+  var keys = [];
+  var allKeys = Object.getOwnPropertySymbols(target);
+  for (var i = 0; i < allKeys.length; i += 1) {
+    var key = allKeys[i];
+    if (Object.getOwnPropertyDescriptor(target, key).enumerable) {
+      keys.push(key);
+    }
+  }
+  return keys;
+}
+
+/*!
+ * Determines if two objects have matching values, given a set of keys. Defers to deepEqual for the equality check of
+ * each key. If any value of the given key is not equal, the function will return false (early).
+ *
+ * @param {Mixed} leftHandOperand
+ * @param {Mixed} rightHandOperand
+ * @param {Array} keys An array of keys to compare the values of leftHandOperand and rightHandOperand against
+ * @param {Object} [options] (Optional)
+ * @return {Boolean} result
+ */
+function keysEqual(leftHandOperand, rightHandOperand, keys, options) {
+  var length = keys.length;
+  if (length === 0) {
+    return true;
+  }
+  for (var i = 0; i < length; i += 1) {
+    if (deepEqual(leftHandOperand[keys[i]], rightHandOperand[keys[i]], options) === false) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/*!
+ * Recursively check the equality of two Objects. Once basic sameness has been established it will defer to `deepEqual`
+ * for each enumerable key in the object.
+ *
+ * @param {Mixed} leftHandOperand
+ * @param {Mixed} rightHandOperand
+ * @param {Object} [options] (Optional)
+ * @return {Boolean} result
+ */
+function objectEqual(leftHandOperand, rightHandOperand, options) {
+  var leftHandKeys = getEnumerableKeys(leftHandOperand);
+  var rightHandKeys = getEnumerableKeys(rightHandOperand);
+  var leftHandSymbols = getEnumerableSymbols(leftHandOperand);
+  var rightHandSymbols = getEnumerableSymbols(rightHandOperand);
+  leftHandKeys = leftHandKeys.concat(leftHandSymbols);
+  rightHandKeys = rightHandKeys.concat(rightHandSymbols);
+
+  if (leftHandKeys.length && leftHandKeys.length === rightHandKeys.length) {
+    if (iterableEqual(mapSymbols(leftHandKeys).sort(), mapSymbols(rightHandKeys).sort()) === false) {
+      return false;
+    }
+    return keysEqual(leftHandOperand, rightHandOperand, leftHandKeys, options);
+  }
+
+  var leftHandEntries = getIteratorEntries(leftHandOperand);
+  var rightHandEntries = getIteratorEntries(rightHandOperand);
+  if (leftHandEntries.length && leftHandEntries.length === rightHandEntries.length) {
+    leftHandEntries.sort();
+    rightHandEntries.sort();
+    return iterableEqual(leftHandEntries, rightHandEntries, options);
+  }
+
+  if (leftHandKeys.length === 0 &&
+      leftHandEntries.length === 0 &&
+      rightHandKeys.length === 0 &&
+      rightHandEntries.length === 0) {
+    return true;
+  }
+
+  return false;
+}
+
+/*!
+ * Returns true if the argument is a primitive.
+ *
+ * This intentionally returns true for all objects that can be compared by reference,
+ * including functions and symbols.
+ *
+ * @param {Mixed} value
+ * @return {Boolean} result
+ */
+function isPrimitive(value) {
+  return value === null || typeof value !== 'object';
+}
+
+function mapSymbols(arr) {
+  return arr.map(function mapSymbol(entry) {
+    if (typeof entry === 'symbol') {
+      return entry.toString();
+    }
+
+    return entry;
+  });
+}
+
+
+/***/ }),
+
 /***/ 448:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
@@ -566,6 +1067,400 @@ if (true) {
 } else {}
 
 
+/***/ }),
+
+/***/ 13:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+(function (global, factory) {
+	 true ? module.exports = factory() :
+	0;
+}(this, (function () { 'use strict';
+
+/* !
+ * type-detect
+ * Copyright(c) 2013 jake luer <jake@alogicalparadox.com>
+ * MIT Licensed
+ */
+var promiseExists = typeof Promise === 'function';
+
+/* eslint-disable no-undef */
+var globalObject = typeof self === 'object' ? self : __webpack_require__.g; // eslint-disable-line id-blacklist
+
+var symbolExists = typeof Symbol !== 'undefined';
+var mapExists = typeof Map !== 'undefined';
+var setExists = typeof Set !== 'undefined';
+var weakMapExists = typeof WeakMap !== 'undefined';
+var weakSetExists = typeof WeakSet !== 'undefined';
+var dataViewExists = typeof DataView !== 'undefined';
+var symbolIteratorExists = symbolExists && typeof Symbol.iterator !== 'undefined';
+var symbolToStringTagExists = symbolExists && typeof Symbol.toStringTag !== 'undefined';
+var setEntriesExists = setExists && typeof Set.prototype.entries === 'function';
+var mapEntriesExists = mapExists && typeof Map.prototype.entries === 'function';
+var setIteratorPrototype = setEntriesExists && Object.getPrototypeOf(new Set().entries());
+var mapIteratorPrototype = mapEntriesExists && Object.getPrototypeOf(new Map().entries());
+var arrayIteratorExists = symbolIteratorExists && typeof Array.prototype[Symbol.iterator] === 'function';
+var arrayIteratorPrototype = arrayIteratorExists && Object.getPrototypeOf([][Symbol.iterator]());
+var stringIteratorExists = symbolIteratorExists && typeof String.prototype[Symbol.iterator] === 'function';
+var stringIteratorPrototype = stringIteratorExists && Object.getPrototypeOf(''[Symbol.iterator]());
+var toStringLeftSliceLength = 8;
+var toStringRightSliceLength = -1;
+/**
+ * ### typeOf (obj)
+ *
+ * Uses `Object.prototype.toString` to determine the type of an object,
+ * normalising behaviour across engine versions & well optimised.
+ *
+ * @param {Mixed} object
+ * @return {String} object type
+ * @api public
+ */
+function typeDetect(obj) {
+  /* ! Speed optimisation
+   * Pre:
+   *   string literal     x 3,039,035 ops/sec ±1.62% (78 runs sampled)
+   *   boolean literal    x 1,424,138 ops/sec ±4.54% (75 runs sampled)
+   *   number literal     x 1,653,153 ops/sec ±1.91% (82 runs sampled)
+   *   undefined          x 9,978,660 ops/sec ±1.92% (75 runs sampled)
+   *   function           x 2,556,769 ops/sec ±1.73% (77 runs sampled)
+   * Post:
+   *   string literal     x 38,564,796 ops/sec ±1.15% (79 runs sampled)
+   *   boolean literal    x 31,148,940 ops/sec ±1.10% (79 runs sampled)
+   *   number literal     x 32,679,330 ops/sec ±1.90% (78 runs sampled)
+   *   undefined          x 32,363,368 ops/sec ±1.07% (82 runs sampled)
+   *   function           x 31,296,870 ops/sec ±0.96% (83 runs sampled)
+   */
+  var typeofObj = typeof obj;
+  if (typeofObj !== 'object') {
+    return typeofObj;
+  }
+
+  /* ! Speed optimisation
+   * Pre:
+   *   null               x 28,645,765 ops/sec ±1.17% (82 runs sampled)
+   * Post:
+   *   null               x 36,428,962 ops/sec ±1.37% (84 runs sampled)
+   */
+  if (obj === null) {
+    return 'null';
+  }
+
+  /* ! Spec Conformance
+   * Test: `Object.prototype.toString.call(window)``
+   *  - Node === "[object global]"
+   *  - Chrome === "[object global]"
+   *  - Firefox === "[object Window]"
+   *  - PhantomJS === "[object Window]"
+   *  - Safari === "[object Window]"
+   *  - IE 11 === "[object Window]"
+   *  - IE Edge === "[object Window]"
+   * Test: `Object.prototype.toString.call(this)``
+   *  - Chrome Worker === "[object global]"
+   *  - Firefox Worker === "[object DedicatedWorkerGlobalScope]"
+   *  - Safari Worker === "[object DedicatedWorkerGlobalScope]"
+   *  - IE 11 Worker === "[object WorkerGlobalScope]"
+   *  - IE Edge Worker === "[object WorkerGlobalScope]"
+   */
+  if (obj === globalObject) {
+    return 'global';
+  }
+
+  /* ! Speed optimisation
+   * Pre:
+   *   array literal      x 2,888,352 ops/sec ±0.67% (82 runs sampled)
+   * Post:
+   *   array literal      x 22,479,650 ops/sec ±0.96% (81 runs sampled)
+   */
+  if (
+    Array.isArray(obj) &&
+    (symbolToStringTagExists === false || !(Symbol.toStringTag in obj))
+  ) {
+    return 'Array';
+  }
+
+  // Not caching existence of `window` and related properties due to potential
+  // for `window` to be unset before tests in quasi-browser environments.
+  if (typeof window === 'object' && window !== null) {
+    /* ! Spec Conformance
+     * (https://html.spec.whatwg.org/multipage/browsers.html#location)
+     * WhatWG HTML$7.7.3 - The `Location` interface
+     * Test: `Object.prototype.toString.call(window.location)``
+     *  - IE <=11 === "[object Object]"
+     *  - IE Edge <=13 === "[object Object]"
+     */
+    if (typeof window.location === 'object' && obj === window.location) {
+      return 'Location';
+    }
+
+    /* ! Spec Conformance
+     * (https://html.spec.whatwg.org/#document)
+     * WhatWG HTML$3.1.1 - The `Document` object
+     * Note: Most browsers currently adher to the W3C DOM Level 2 spec
+     *       (https://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-26809268)
+     *       which suggests that browsers should use HTMLTableCellElement for
+     *       both TD and TH elements. WhatWG separates these.
+     *       WhatWG HTML states:
+     *         > For historical reasons, Window objects must also have a
+     *         > writable, configurable, non-enumerable property named
+     *         > HTMLDocument whose value is the Document interface object.
+     * Test: `Object.prototype.toString.call(document)``
+     *  - Chrome === "[object HTMLDocument]"
+     *  - Firefox === "[object HTMLDocument]"
+     *  - Safari === "[object HTMLDocument]"
+     *  - IE <=10 === "[object Document]"
+     *  - IE 11 === "[object HTMLDocument]"
+     *  - IE Edge <=13 === "[object HTMLDocument]"
+     */
+    if (typeof window.document === 'object' && obj === window.document) {
+      return 'Document';
+    }
+
+    if (typeof window.navigator === 'object') {
+      /* ! Spec Conformance
+       * (https://html.spec.whatwg.org/multipage/webappapis.html#mimetypearray)
+       * WhatWG HTML$8.6.1.5 - Plugins - Interface MimeTypeArray
+       * Test: `Object.prototype.toString.call(navigator.mimeTypes)``
+       *  - IE <=10 === "[object MSMimeTypesCollection]"
+       */
+      if (typeof window.navigator.mimeTypes === 'object' &&
+          obj === window.navigator.mimeTypes) {
+        return 'MimeTypeArray';
+      }
+
+      /* ! Spec Conformance
+       * (https://html.spec.whatwg.org/multipage/webappapis.html#pluginarray)
+       * WhatWG HTML$8.6.1.5 - Plugins - Interface PluginArray
+       * Test: `Object.prototype.toString.call(navigator.plugins)``
+       *  - IE <=10 === "[object MSPluginsCollection]"
+       */
+      if (typeof window.navigator.plugins === 'object' &&
+          obj === window.navigator.plugins) {
+        return 'PluginArray';
+      }
+    }
+
+    if ((typeof window.HTMLElement === 'function' ||
+        typeof window.HTMLElement === 'object') &&
+        obj instanceof window.HTMLElement) {
+      /* ! Spec Conformance
+      * (https://html.spec.whatwg.org/multipage/webappapis.html#pluginarray)
+      * WhatWG HTML$4.4.4 - The `blockquote` element - Interface `HTMLQuoteElement`
+      * Test: `Object.prototype.toString.call(document.createElement('blockquote'))``
+      *  - IE <=10 === "[object HTMLBlockElement]"
+      */
+      if (obj.tagName === 'BLOCKQUOTE') {
+        return 'HTMLQuoteElement';
+      }
+
+      /* ! Spec Conformance
+       * (https://html.spec.whatwg.org/#htmltabledatacellelement)
+       * WhatWG HTML$4.9.9 - The `td` element - Interface `HTMLTableDataCellElement`
+       * Note: Most browsers currently adher to the W3C DOM Level 2 spec
+       *       (https://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-82915075)
+       *       which suggests that browsers should use HTMLTableCellElement for
+       *       both TD and TH elements. WhatWG separates these.
+       * Test: Object.prototype.toString.call(document.createElement('td'))
+       *  - Chrome === "[object HTMLTableCellElement]"
+       *  - Firefox === "[object HTMLTableCellElement]"
+       *  - Safari === "[object HTMLTableCellElement]"
+       */
+      if (obj.tagName === 'TD') {
+        return 'HTMLTableDataCellElement';
+      }
+
+      /* ! Spec Conformance
+       * (https://html.spec.whatwg.org/#htmltableheadercellelement)
+       * WhatWG HTML$4.9.9 - The `td` element - Interface `HTMLTableHeaderCellElement`
+       * Note: Most browsers currently adher to the W3C DOM Level 2 spec
+       *       (https://www.w3.org/TR/DOM-Level-2-HTML/html.html#ID-82915075)
+       *       which suggests that browsers should use HTMLTableCellElement for
+       *       both TD and TH elements. WhatWG separates these.
+       * Test: Object.prototype.toString.call(document.createElement('th'))
+       *  - Chrome === "[object HTMLTableCellElement]"
+       *  - Firefox === "[object HTMLTableCellElement]"
+       *  - Safari === "[object HTMLTableCellElement]"
+       */
+      if (obj.tagName === 'TH') {
+        return 'HTMLTableHeaderCellElement';
+      }
+    }
+  }
+
+  /* ! Speed optimisation
+  * Pre:
+  *   Float64Array       x 625,644 ops/sec ±1.58% (80 runs sampled)
+  *   Float32Array       x 1,279,852 ops/sec ±2.91% (77 runs sampled)
+  *   Uint32Array        x 1,178,185 ops/sec ±1.95% (83 runs sampled)
+  *   Uint16Array        x 1,008,380 ops/sec ±2.25% (80 runs sampled)
+  *   Uint8Array         x 1,128,040 ops/sec ±2.11% (81 runs sampled)
+  *   Int32Array         x 1,170,119 ops/sec ±2.88% (80 runs sampled)
+  *   Int16Array         x 1,176,348 ops/sec ±5.79% (86 runs sampled)
+  *   Int8Array          x 1,058,707 ops/sec ±4.94% (77 runs sampled)
+  *   Uint8ClampedArray  x 1,110,633 ops/sec ±4.20% (80 runs sampled)
+  * Post:
+  *   Float64Array       x 7,105,671 ops/sec ±13.47% (64 runs sampled)
+  *   Float32Array       x 5,887,912 ops/sec ±1.46% (82 runs sampled)
+  *   Uint32Array        x 6,491,661 ops/sec ±1.76% (79 runs sampled)
+  *   Uint16Array        x 6,559,795 ops/sec ±1.67% (82 runs sampled)
+  *   Uint8Array         x 6,463,966 ops/sec ±1.43% (85 runs sampled)
+  *   Int32Array         x 5,641,841 ops/sec ±3.49% (81 runs sampled)
+  *   Int16Array         x 6,583,511 ops/sec ±1.98% (80 runs sampled)
+  *   Int8Array          x 6,606,078 ops/sec ±1.74% (81 runs sampled)
+  *   Uint8ClampedArray  x 6,602,224 ops/sec ±1.77% (83 runs sampled)
+  */
+  var stringTag = (symbolToStringTagExists && obj[Symbol.toStringTag]);
+  if (typeof stringTag === 'string') {
+    return stringTag;
+  }
+
+  var objPrototype = Object.getPrototypeOf(obj);
+  /* ! Speed optimisation
+  * Pre:
+  *   regex literal      x 1,772,385 ops/sec ±1.85% (77 runs sampled)
+  *   regex constructor  x 2,143,634 ops/sec ±2.46% (78 runs sampled)
+  * Post:
+  *   regex literal      x 3,928,009 ops/sec ±0.65% (78 runs sampled)
+  *   regex constructor  x 3,931,108 ops/sec ±0.58% (84 runs sampled)
+  */
+  if (objPrototype === RegExp.prototype) {
+    return 'RegExp';
+  }
+
+  /* ! Speed optimisation
+  * Pre:
+  *   date               x 2,130,074 ops/sec ±4.42% (68 runs sampled)
+  * Post:
+  *   date               x 3,953,779 ops/sec ±1.35% (77 runs sampled)
+  */
+  if (objPrototype === Date.prototype) {
+    return 'Date';
+  }
+
+  /* ! Spec Conformance
+   * (http://www.ecma-international.org/ecma-262/6.0/index.html#sec-promise.prototype-@@tostringtag)
+   * ES6$25.4.5.4 - Promise.prototype[@@toStringTag] should be "Promise":
+   * Test: `Object.prototype.toString.call(Promise.resolve())``
+   *  - Chrome <=47 === "[object Object]"
+   *  - Edge <=20 === "[object Object]"
+   *  - Firefox 29-Latest === "[object Promise]"
+   *  - Safari 7.1-Latest === "[object Promise]"
+   */
+  if (promiseExists && objPrototype === Promise.prototype) {
+    return 'Promise';
+  }
+
+  /* ! Speed optimisation
+  * Pre:
+  *   set                x 2,222,186 ops/sec ±1.31% (82 runs sampled)
+  * Post:
+  *   set                x 4,545,879 ops/sec ±1.13% (83 runs sampled)
+  */
+  if (setExists && objPrototype === Set.prototype) {
+    return 'Set';
+  }
+
+  /* ! Speed optimisation
+  * Pre:
+  *   map                x 2,396,842 ops/sec ±1.59% (81 runs sampled)
+  * Post:
+  *   map                x 4,183,945 ops/sec ±6.59% (82 runs sampled)
+  */
+  if (mapExists && objPrototype === Map.prototype) {
+    return 'Map';
+  }
+
+  /* ! Speed optimisation
+  * Pre:
+  *   weakset            x 1,323,220 ops/sec ±2.17% (76 runs sampled)
+  * Post:
+  *   weakset            x 4,237,510 ops/sec ±2.01% (77 runs sampled)
+  */
+  if (weakSetExists && objPrototype === WeakSet.prototype) {
+    return 'WeakSet';
+  }
+
+  /* ! Speed optimisation
+  * Pre:
+  *   weakmap            x 1,500,260 ops/sec ±2.02% (78 runs sampled)
+  * Post:
+  *   weakmap            x 3,881,384 ops/sec ±1.45% (82 runs sampled)
+  */
+  if (weakMapExists && objPrototype === WeakMap.prototype) {
+    return 'WeakMap';
+  }
+
+  /* ! Spec Conformance
+   * (http://www.ecma-international.org/ecma-262/6.0/index.html#sec-dataview.prototype-@@tostringtag)
+   * ES6$24.2.4.21 - DataView.prototype[@@toStringTag] should be "DataView":
+   * Test: `Object.prototype.toString.call(new DataView(new ArrayBuffer(1)))``
+   *  - Edge <=13 === "[object Object]"
+   */
+  if (dataViewExists && objPrototype === DataView.prototype) {
+    return 'DataView';
+  }
+
+  /* ! Spec Conformance
+   * (http://www.ecma-international.org/ecma-262/6.0/index.html#sec-%mapiteratorprototype%-@@tostringtag)
+   * ES6$23.1.5.2.2 - %MapIteratorPrototype%[@@toStringTag] should be "Map Iterator":
+   * Test: `Object.prototype.toString.call(new Map().entries())``
+   *  - Edge <=13 === "[object Object]"
+   */
+  if (mapExists && objPrototype === mapIteratorPrototype) {
+    return 'Map Iterator';
+  }
+
+  /* ! Spec Conformance
+   * (http://www.ecma-international.org/ecma-262/6.0/index.html#sec-%setiteratorprototype%-@@tostringtag)
+   * ES6$23.2.5.2.2 - %SetIteratorPrototype%[@@toStringTag] should be "Set Iterator":
+   * Test: `Object.prototype.toString.call(new Set().entries())``
+   *  - Edge <=13 === "[object Object]"
+   */
+  if (setExists && objPrototype === setIteratorPrototype) {
+    return 'Set Iterator';
+  }
+
+  /* ! Spec Conformance
+   * (http://www.ecma-international.org/ecma-262/6.0/index.html#sec-%arrayiteratorprototype%-@@tostringtag)
+   * ES6$22.1.5.2.2 - %ArrayIteratorPrototype%[@@toStringTag] should be "Array Iterator":
+   * Test: `Object.prototype.toString.call([][Symbol.iterator]())``
+   *  - Edge <=13 === "[object Object]"
+   */
+  if (arrayIteratorExists && objPrototype === arrayIteratorPrototype) {
+    return 'Array Iterator';
+  }
+
+  /* ! Spec Conformance
+   * (http://www.ecma-international.org/ecma-262/6.0/index.html#sec-%stringiteratorprototype%-@@tostringtag)
+   * ES6$21.1.5.2.2 - %StringIteratorPrototype%[@@toStringTag] should be "String Iterator":
+   * Test: `Object.prototype.toString.call(''[Symbol.iterator]())``
+   *  - Edge <=13 === "[object Object]"
+   */
+  if (stringIteratorExists && objPrototype === stringIteratorPrototype) {
+    return 'String Iterator';
+  }
+
+  /* ! Speed optimisation
+  * Pre:
+  *   object from null   x 2,424,320 ops/sec ±1.67% (76 runs sampled)
+  * Post:
+  *   object from null   x 5,838,000 ops/sec ±0.99% (84 runs sampled)
+  */
+  if (objPrototype === null) {
+    return 'Object';
+  }
+
+  return Object
+    .prototype
+    .toString
+    .call(obj)
+    .slice(toStringLeftSliceLength, toStringRightSliceLength);
+}
+
+return typeDetect;
+
+})));
+
+
 /***/ })
 
 /******/ 	});
@@ -588,7 +1483,7 @@ if (true) {
 /******/ 		};
 /******/ 	
 /******/ 		// Execute the module function
-/******/ 		__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
 /******/ 	
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
@@ -667,20 +1562,11903 @@ var __webpack_exports__ = {};
 
 // EXTERNAL MODULE: ./node_modules/react-dom/client.js
 var client = __webpack_require__(745);
+// EXTERNAL MODULE: ./node_modules/react/index.js
+var react = __webpack_require__(294);
 ;// CONCATENATED MODULE: ./src/Fonts/index.scss
 // extracted by mini-css-extract-plugin
 /* harmony default export */ const Fonts = ({});
+;// CONCATENATED MODULE: ./src/Hooks/UseWindowDimensions.tsx
+function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, _typeof(obj); }
+function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { _defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+function _defineProperty(obj, key, value) { key = _toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return _typeof(key) === "symbol" ? key : String(key); }
+function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
+function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
+function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]; return arr2; }
+function _iterableToArrayLimit(arr, i) { var _i = null == arr ? null : "undefined" != typeof Symbol && arr[Symbol.iterator] || arr["@@iterator"]; if (null != _i) { var _s, _e, _x, _r, _arr = [], _n = !0, _d = !1; try { if (_x = (_i = _i.call(arr)).next, 0 === i) { if (Object(_i) !== _i) return; _n = !1; } else for (; !(_n = (_s = _x.call(_i)).done) && (_arr.push(_s.value), _arr.length !== i); _n = !0); } catch (err) { _d = !0, _e = err; } finally { try { if (!_n && null != _i["return"] && (_r = _i["return"](), Object(_r) !== _r)) return; } finally { if (_d) throw _e; } } return _arr; } }
+function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
+
+var useWindowDimensions = function useWindowDimensions() {
+  var getWindowDimensions = function getWindowDimensions() {
+    return {
+      width: window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth,
+      height: window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight
+    };
+  };
+  var _useState = (0,react.useState)(getWindowDimensions()),
+    _useState2 = _slicedToArray(_useState, 2),
+    windowDimensions = _useState2[0],
+    setWindowDimensions = _useState2[1];
+  var _useState3 = (0,react.useState)(false),
+    _useState4 = _slicedToArray(_useState3, 2),
+    isMobile = _useState4[0],
+    setIsMobile = _useState4[1];
+  (0,react.useEffect)(function () {
+    var isMobileVersion = function isMobileVersion() {
+      var width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+      return width <= 768;
+    };
+    setIsMobile(isMobileVersion());
+  }, [windowDimensions]);
+  (0,react.useEffect)(function () {
+    var handleResize = function handleResize() {
+      return setWindowDimensions(getWindowDimensions());
+    };
+    window.addEventListener('resize', handleResize);
+    return function () {
+      return window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+  return _objectSpread(_objectSpread({}, windowDimensions), {}, {
+    isMobile: isMobile
+  });
+};
+/* harmony default export */ const UseWindowDimensions = (useWindowDimensions);
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Utils/EventDispatcher.js
+class EventDispatcher {
+    constructor() {
+        this._listeners = new Map();
+    }
+    addEventListener(type, listener) {
+        this.removeEventListener(type, listener);
+        let arr = this._listeners.get(type);
+        if (!arr) {
+            arr = [];
+            this._listeners.set(type, arr);
+        }
+        arr.push(listener);
+    }
+    dispatchEvent(type, args) {
+        const listeners = this._listeners.get(type);
+        listeners && listeners.forEach((handler) => handler(args));
+    }
+    hasEventListener(type) {
+        return !!this._listeners.get(type);
+    }
+    removeAllEventListeners(type) {
+        if (!type) {
+            this._listeners = new Map();
+        }
+        else {
+            this._listeners.delete(type);
+        }
+    }
+    removeEventListener(type, listener) {
+        const arr = this._listeners.get(type);
+        if (!arr) {
+            return;
+        }
+        const length = arr.length, idx = arr.indexOf(listener);
+        if (idx < 0) {
+            return;
+        }
+        if (length === 1) {
+            this._listeners.delete(type);
+        }
+        else {
+            arr.splice(idx, 1);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/Constants.js
+const generatedAttribute = "generated";
+const mouseDownEvent = "pointerdown";
+const mouseUpEvent = "pointerup";
+const mouseLeaveEvent = "pointerleave";
+const mouseOutEvent = "pointerout";
+const mouseMoveEvent = "pointermove";
+const touchStartEvent = "touchstart";
+const touchEndEvent = "touchend";
+const touchMoveEvent = "touchmove";
+const touchCancelEvent = "touchcancel";
+const resizeEvent = "resize";
+const visibilityChangeEvent = "visibilitychange";
+const errorPrefix = "tsParticles - Error";
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/Vector3d.js
+
+class Vector3d {
+    constructor(xOrCoords, y, z) {
+        this._updateFromAngle = (angle, length) => {
+            this.x = Math.cos(angle) * length;
+            this.y = Math.sin(angle) * length;
+        };
+        if (typeof xOrCoords !== "number" && xOrCoords) {
+            this.x = xOrCoords.x;
+            this.y = xOrCoords.y;
+            const coords3d = xOrCoords;
+            this.z = coords3d.z ? coords3d.z : 0;
+        }
+        else if (xOrCoords !== undefined && y !== undefined) {
+            this.x = xOrCoords;
+            this.y = y;
+            this.z = z ?? 0;
+        }
+        else {
+            throw new Error(`${errorPrefix} Vector3d not initialized correctly`);
+        }
+    }
+    static get origin() {
+        return Vector3d.create(0, 0, 0);
+    }
+    get angle() {
+        return Math.atan2(this.y, this.x);
+    }
+    set angle(angle) {
+        this._updateFromAngle(angle, this.length);
+    }
+    get length() {
+        return Math.sqrt(this.getLengthSq());
+    }
+    set length(length) {
+        this._updateFromAngle(this.angle, length);
+    }
+    static clone(source) {
+        return Vector3d.create(source.x, source.y, source.z);
+    }
+    static create(x, y, z) {
+        return new Vector3d(x, y, z);
+    }
+    add(v) {
+        return Vector3d.create(this.x + v.x, this.y + v.y, this.z + v.z);
+    }
+    addTo(v) {
+        this.x += v.x;
+        this.y += v.y;
+        this.z += v.z;
+    }
+    copy() {
+        return Vector3d.clone(this);
+    }
+    distanceTo(v) {
+        return this.sub(v).length;
+    }
+    distanceToSq(v) {
+        return this.sub(v).getLengthSq();
+    }
+    div(n) {
+        return Vector3d.create(this.x / n, this.y / n, this.z / n);
+    }
+    divTo(n) {
+        this.x /= n;
+        this.y /= n;
+        this.z /= n;
+    }
+    getLengthSq() {
+        return this.x ** 2 + this.y ** 2;
+    }
+    mult(n) {
+        return Vector3d.create(this.x * n, this.y * n, this.z * n);
+    }
+    multTo(n) {
+        this.x *= n;
+        this.y *= n;
+        this.z *= n;
+    }
+    rotate(angle) {
+        return Vector3d.create(this.x * Math.cos(angle) - this.y * Math.sin(angle), this.x * Math.sin(angle) + this.y * Math.cos(angle), 0);
+    }
+    setTo(c) {
+        this.x = c.x;
+        this.y = c.y;
+        const v3d = c;
+        this.z = v3d.z ? v3d.z : 0;
+    }
+    sub(v) {
+        return Vector3d.create(this.x - v.x, this.y - v.y, this.z - v.z);
+    }
+    subFrom(v) {
+        this.x -= v.x;
+        this.y -= v.y;
+        this.z -= v.z;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/Vector.js
+
+class Vector extends Vector3d {
+    constructor(xOrCoords, y) {
+        super(xOrCoords, y, 0);
+    }
+    static get origin() {
+        return Vector.create(0, 0);
+    }
+    static clone(source) {
+        return Vector.create(source.x, source.y);
+    }
+    static create(x, y) {
+        return new Vector(x, y);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Utils/NumberUtils.js
+
+let _random = Math.random;
+const easings = new Map();
+function addEasing(name, easing) {
+    if (easings.get(name)) {
+        return;
+    }
+    easings.set(name, easing);
+}
+function getEasing(name) {
+    return easings.get(name) || ((value) => value);
+}
+function setRandom(rnd = Math.random) {
+    _random = rnd;
+}
+function getRandom() {
+    return clamp(_random(), 0, 1 - 1e-16);
+}
+function clamp(num, min, max) {
+    return Math.min(Math.max(num, min), max);
+}
+function mix(comp1, comp2, weight1, weight2) {
+    return Math.floor((comp1 * weight1 + comp2 * weight2) / (weight1 + weight2));
+}
+function randomInRange(r) {
+    const max = getRangeMax(r);
+    let min = getRangeMin(r);
+    if (max === min) {
+        min = 0;
+    }
+    return getRandom() * (max - min) + min;
+}
+function getRangeValue(value) {
+    return typeof value === "number" ? value : randomInRange(value);
+}
+function getRangeMin(value) {
+    return typeof value === "number" ? value : value.min;
+}
+function getRangeMax(value) {
+    return typeof value === "number" ? value : value.max;
+}
+function NumberUtils_setRangeValue(source, value) {
+    if (source === value || (value === undefined && typeof source === "number")) {
+        return source;
+    }
+    const min = getRangeMin(source), max = getRangeMax(source);
+    return value !== undefined
+        ? {
+            min: Math.min(min, value),
+            max: Math.max(max, value),
+        }
+        : NumberUtils_setRangeValue(min, max);
+}
+function getValue(options) {
+    const random = options.random, { enable, minimumValue } = typeof random === "boolean"
+        ? {
+            enable: random,
+            minimumValue: 0,
+        }
+        : random;
+    return enable ? getRangeValue(NumberUtils_setRangeValue(options.value, minimumValue)) : getRangeValue(options.value);
+}
+function getDistances(pointA, pointB) {
+    const dx = pointA.x - pointB.x, dy = pointA.y - pointB.y;
+    return { dx: dx, dy: dy, distance: Math.sqrt(dx ** 2 + dy ** 2) };
+}
+function getDistance(pointA, pointB) {
+    return getDistances(pointA, pointB).distance;
+}
+function getParticleDirectionAngle(direction, position, center) {
+    if (typeof direction === "number") {
+        return (direction * Math.PI) / 180;
+    }
+    else {
+        switch (direction) {
+            case "top":
+                return -Math.PI / 2;
+            case "top-right":
+                return -Math.PI / 4;
+            case "right":
+                return 0;
+            case "bottom-right":
+                return Math.PI / 4;
+            case "bottom":
+                return Math.PI / 2;
+            case "bottom-left":
+                return (3 * Math.PI) / 4;
+            case "left":
+                return Math.PI;
+            case "top-left":
+                return (-3 * Math.PI) / 4;
+            case "inside":
+                return Math.atan2(center.y - position.y, center.x - position.x);
+            case "outside":
+                return Math.atan2(position.y - center.y, position.x - center.x);
+            default:
+                return getRandom() * Math.PI * 2;
+        }
+    }
+}
+function getParticleBaseVelocity(direction) {
+    const baseVelocity = Vector.origin;
+    baseVelocity.length = 1;
+    baseVelocity.angle = direction;
+    return baseVelocity;
+}
+function collisionVelocity(v1, v2, m1, m2) {
+    return Vector.create((v1.x * (m1 - m2)) / (m1 + m2) + (v2.x * 2 * m2) / (m1 + m2), v1.y);
+}
+function calcPositionFromSize(data) {
+    return data.position && data.position.x !== undefined && data.position.y !== undefined
+        ? {
+            x: (data.position.x * data.size.width) / 100,
+            y: (data.position.y * data.size.height) / 100,
+        }
+        : undefined;
+}
+function calcPositionOrRandomFromSize(data) {
+    return {
+        x: ((data.position?.x ?? getRandom() * 100) * data.size.width) / 100,
+        y: ((data.position?.y ?? getRandom() * 100) * data.size.height) / 100,
+    };
+}
+function calcPositionOrRandomFromSizeRanged(data) {
+    const position = {
+        x: data.position?.x !== undefined ? getRangeValue(data.position.x) : undefined,
+        y: data.position?.y !== undefined ? getRangeValue(data.position.y) : undefined,
+    };
+    return calcPositionOrRandomFromSize({ size: data.size, position });
+}
+function calcExactPositionOrRandomFromSize(data) {
+    return {
+        x: data.position?.x ?? getRandom() * data.size.width,
+        y: data.position?.y ?? getRandom() * data.size.height,
+    };
+}
+function calcExactPositionOrRandomFromSizeRanged(data) {
+    const position = {
+        x: data.position?.x !== undefined ? getRangeValue(data.position.x) : undefined,
+        y: data.position?.y !== undefined ? getRangeValue(data.position.y) : undefined,
+    };
+    return calcExactPositionOrRandomFromSize({ size: data.size, position });
+}
+function parseAlpha(input) {
+    return input ? (input.endsWith("%") ? parseFloat(input) / 100 : parseFloat(input)) : 1;
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Utils/Utils.js
+
+
+function rectSideBounce(data) {
+    const res = { bounced: false }, { pSide, pOtherSide, rectSide, rectOtherSide, velocity, factor } = data;
+    if (pOtherSide.min < rectOtherSide.min ||
+        pOtherSide.min > rectOtherSide.max ||
+        pOtherSide.max < rectOtherSide.min ||
+        pOtherSide.max > rectOtherSide.max) {
+        return res;
+    }
+    if ((pSide.max >= rectSide.min && pSide.max <= (rectSide.max + rectSide.min) / 2 && velocity > 0) ||
+        (pSide.min <= rectSide.max && pSide.min > (rectSide.max + rectSide.min) / 2 && velocity < 0)) {
+        res.velocity = velocity * -factor;
+        res.bounced = true;
+    }
+    return res;
+}
+function checkSelector(element, selectors) {
+    const res = executeOnSingleOrMultiple(selectors, (selector) => {
+        return element.matches(selector);
+    });
+    return res instanceof Array ? res.some((t) => t) : res;
+}
+function isSsr() {
+    return typeof window === "undefined" || !window || typeof window.document === "undefined" || !window.document;
+}
+function hasMatchMedia() {
+    return !isSsr() && typeof matchMedia !== "undefined";
+}
+function safeMatchMedia(query) {
+    if (!hasMatchMedia()) {
+        return;
+    }
+    return matchMedia(query);
+}
+function animate() {
+    return isSsr()
+        ? (callback) => setTimeout(callback)
+        : (callback) => (requestAnimationFrame || setTimeout)(callback);
+}
+function cancelAnimation() {
+    return isSsr()
+        ? (handle) => clearTimeout(handle)
+        : (handle) => (cancelAnimationFrame || clearTimeout)(handle);
+}
+function isInArray(value, array) {
+    return value === array || (array instanceof Array && array.indexOf(value) > -1);
+}
+async function loadFont(font, weight) {
+    try {
+        await document.fonts.load(`${weight ?? "400"} 36px '${font ?? "Verdana"}'`);
+    }
+    catch {
+    }
+}
+function arrayRandomIndex(array) {
+    return Math.floor(getRandom() * array.length);
+}
+function itemFromArray(array, index, useIndex = true) {
+    return array[index !== undefined && useIndex ? index % array.length : arrayRandomIndex(array)];
+}
+function isPointInside(point, size, offset, radius, direction) {
+    return areBoundsInside(calculateBounds(point, radius ?? 0), size, offset, direction);
+}
+function areBoundsInside(bounds, size, offset, direction) {
+    let inside = true;
+    if (!direction || direction === "bottom") {
+        inside = bounds.top < size.height + offset.x;
+    }
+    if (inside && (!direction || direction === "left")) {
+        inside = bounds.right > offset.x;
+    }
+    if (inside && (!direction || direction === "right")) {
+        inside = bounds.left < size.width + offset.y;
+    }
+    if (inside && (!direction || direction === "top")) {
+        inside = bounds.bottom > offset.y;
+    }
+    return inside;
+}
+function calculateBounds(point, radius) {
+    return {
+        bottom: point.y + radius,
+        left: point.x - radius,
+        right: point.x + radius,
+        top: point.y - radius,
+    };
+}
+function deepExtend(destination, ...sources) {
+    for (const source of sources) {
+        if (source === undefined || source === null) {
+            continue;
+        }
+        if (typeof source !== "object") {
+            destination = source;
+            continue;
+        }
+        const sourceIsArray = Array.isArray(source);
+        if (sourceIsArray && (typeof destination !== "object" || !destination || !Array.isArray(destination))) {
+            destination = [];
+        }
+        else if (!sourceIsArray && (typeof destination !== "object" || !destination || Array.isArray(destination))) {
+            destination = {};
+        }
+        for (const key in source) {
+            if (key === "__proto__") {
+                continue;
+            }
+            const sourceDict = source, value = sourceDict[key], isObject = typeof value === "object", destDict = destination;
+            destDict[key] =
+                isObject && Array.isArray(value)
+                    ? value.map((v) => deepExtend(destDict[key], v))
+                    : deepExtend(destDict[key], value);
+        }
+    }
+    return destination;
+}
+function isDivModeEnabled(mode, divs) {
+    return !!findItemFromSingleOrMultiple(divs, (t) => t.enable && isInArray(mode, t.mode));
+}
+function divModeExecute(mode, divs, callback) {
+    executeOnSingleOrMultiple(divs, (div) => {
+        const divMode = div.mode, divEnabled = div.enable;
+        if (divEnabled && isInArray(mode, divMode)) {
+            singleDivModeExecute(div, callback);
+        }
+    });
+}
+function singleDivModeExecute(div, callback) {
+    const selectors = div.selectors;
+    executeOnSingleOrMultiple(selectors, (selector) => {
+        callback(selector, div);
+    });
+}
+function divMode(divs, element) {
+    if (!element || !divs) {
+        return;
+    }
+    return findItemFromSingleOrMultiple(divs, (div) => {
+        return checkSelector(element, div.selectors);
+    });
+}
+function circleBounceDataFromParticle(p) {
+    return {
+        position: p.getPosition(),
+        radius: p.getRadius(),
+        mass: p.getMass(),
+        velocity: p.velocity,
+        factor: Vector.create(getValue(p.options.bounce.horizontal), getValue(p.options.bounce.vertical)),
+    };
+}
+function circleBounce(p1, p2) {
+    const { x: xVelocityDiff, y: yVelocityDiff } = p1.velocity.sub(p2.velocity), [pos1, pos2] = [p1.position, p2.position], { dx: xDist, dy: yDist } = getDistances(pos2, pos1);
+    if (xVelocityDiff * xDist + yVelocityDiff * yDist < 0) {
+        return;
+    }
+    const angle = -Math.atan2(yDist, xDist), m1 = p1.mass, m2 = p2.mass, u1 = p1.velocity.rotate(angle), u2 = p2.velocity.rotate(angle), v1 = collisionVelocity(u1, u2, m1, m2), v2 = collisionVelocity(u2, u1, m1, m2), vFinal1 = v1.rotate(-angle), vFinal2 = v2.rotate(-angle);
+    p1.velocity.x = vFinal1.x * p1.factor.x;
+    p1.velocity.y = vFinal1.y * p1.factor.y;
+    p2.velocity.x = vFinal2.x * p2.factor.x;
+    p2.velocity.y = vFinal2.y * p2.factor.y;
+}
+function rectBounce(particle, divBounds) {
+    const pPos = particle.getPosition(), size = particle.getRadius(), bounds = calculateBounds(pPos, size), resH = rectSideBounce({
+        pSide: {
+            min: bounds.left,
+            max: bounds.right,
+        },
+        pOtherSide: {
+            min: bounds.top,
+            max: bounds.bottom,
+        },
+        rectSide: {
+            min: divBounds.left,
+            max: divBounds.right,
+        },
+        rectOtherSide: {
+            min: divBounds.top,
+            max: divBounds.bottom,
+        },
+        velocity: particle.velocity.x,
+        factor: getValue(particle.options.bounce.horizontal),
+    });
+    if (resH.bounced) {
+        if (resH.velocity !== undefined) {
+            particle.velocity.x = resH.velocity;
+        }
+        if (resH.position !== undefined) {
+            particle.position.x = resH.position;
+        }
+    }
+    const resV = rectSideBounce({
+        pSide: {
+            min: bounds.top,
+            max: bounds.bottom,
+        },
+        pOtherSide: {
+            min: bounds.left,
+            max: bounds.right,
+        },
+        rectSide: {
+            min: divBounds.top,
+            max: divBounds.bottom,
+        },
+        rectOtherSide: {
+            min: divBounds.left,
+            max: divBounds.right,
+        },
+        velocity: particle.velocity.y,
+        factor: getValue(particle.options.bounce.vertical),
+    });
+    if (resV.bounced) {
+        if (resV.velocity !== undefined) {
+            particle.velocity.y = resV.velocity;
+        }
+        if (resV.position !== undefined) {
+            particle.position.y = resV.position;
+        }
+    }
+}
+function executeOnSingleOrMultiple(obj, callback) {
+    return obj instanceof Array ? obj.map((item, index) => callback(item, index)) : callback(obj, 0);
+}
+function itemFromSingleOrMultiple(obj, index, useIndex) {
+    return obj instanceof Array ? itemFromArray(obj, index, useIndex) : obj;
+}
+function findItemFromSingleOrMultiple(obj, callback) {
+    return obj instanceof Array ? obj.find((t, index) => callback(t, index)) : callback(obj, 0) ? obj : undefined;
+}
+function initParticleNumericAnimationValue(options, pxRatio) {
+    const valueRange = options.value, animationOptions = options.animation, res = {
+        delayTime: getRangeValue(animationOptions.delay) * 1000,
+        enable: animationOptions.enable,
+        value: getRangeValue(options.value) * pxRatio,
+        max: getRangeMax(valueRange) * pxRatio,
+        min: getRangeMin(valueRange) * pxRatio,
+        loops: 0,
+        maxLoops: getRangeValue(animationOptions.count),
+        time: 0,
+    };
+    if (animationOptions.enable) {
+        res.decay = 1 - getRangeValue(animationOptions.decay);
+        switch (animationOptions.mode) {
+            case "increase":
+                res.status = "increasing";
+                break;
+            case "decrease":
+                res.status = "decreasing";
+                break;
+            case "random":
+                res.status = getRandom() >= 0.5 ? "increasing" : "decreasing";
+                break;
+        }
+        const autoStatus = animationOptions.mode === "auto";
+        switch (animationOptions.startValue) {
+            case "min":
+                res.value = res.min;
+                if (autoStatus) {
+                    res.status = "increasing";
+                }
+                break;
+            case "max":
+                res.value = res.max;
+                if (autoStatus) {
+                    res.status = "decreasing";
+                }
+                break;
+            case "random":
+            default:
+                res.value = randomInRange(res);
+                if (autoStatus) {
+                    res.status = getRandom() >= 0.5 ? "increasing" : "decreasing";
+                }
+                break;
+        }
+    }
+    res.initialValue = res.value;
+    return res;
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Utils/ColorUtils.js
+
+
+const randomColorValue = "random", midColorValue = "mid", colorManagers = new Map();
+function addColorManager(manager) {
+    colorManagers.set(manager.key, manager);
+}
+function hue2rgb(p, q, t) {
+    if (t < 0) {
+        t += 1;
+    }
+    if (t > 1) {
+        t -= 1;
+    }
+    if (t < 1 / 6) {
+        return p + (q - p) * 6 * t;
+    }
+    if (t < 1 / 2) {
+        return q;
+    }
+    if (t < 2 / 3) {
+        return p + (q - p) * (2 / 3 - t) * 6;
+    }
+    return p;
+}
+function stringToRgba(input) {
+    for (const [, manager] of colorManagers) {
+        if (input.startsWith(manager.stringPrefix)) {
+            return manager.parseString(input);
+        }
+    }
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])([a-f\d])?$/i, hexFixed = input.replace(shorthandRegex, (_, r, g, b, a) => {
+        return r + r + g + g + b + b + (a !== undefined ? a + a : "");
+    }), regex = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})?$/i, result = regex.exec(hexFixed);
+    return result
+        ? {
+            a: result[4] !== undefined ? parseInt(result[4], 16) / 0xff : 1,
+            b: parseInt(result[3], 16),
+            g: parseInt(result[2], 16),
+            r: parseInt(result[1], 16),
+        }
+        : undefined;
+}
+function rangeColorToRgb(input, index, useIndex = true) {
+    if (!input) {
+        return;
+    }
+    const color = typeof input === "string" ? { value: input } : input;
+    if (typeof color.value === "string") {
+        return colorToRgb(color.value, index, useIndex);
+    }
+    if (color.value instanceof Array) {
+        return rangeColorToRgb({
+            value: itemFromArray(color.value, index, useIndex),
+        });
+    }
+    for (const [, manager] of colorManagers) {
+        const res = manager.handleRangeColor(color);
+        if (res) {
+            return res;
+        }
+    }
+}
+function colorToRgb(input, index, useIndex = true) {
+    if (!input) {
+        return;
+    }
+    const color = typeof input === "string" ? { value: input } : input;
+    if (typeof color.value === "string") {
+        return color.value === randomColorValue ? getRandomRgbColor() : stringToRgb(color.value);
+    }
+    if (color.value instanceof Array) {
+        return colorToRgb({
+            value: itemFromArray(color.value, index, useIndex),
+        });
+    }
+    for (const [, manager] of colorManagers) {
+        const res = manager.handleColor(color);
+        if (res) {
+            return res;
+        }
+    }
+}
+function colorToHsl(color, index, useIndex = true) {
+    const rgb = colorToRgb(color, index, useIndex);
+    return rgb ? rgbToHsl(rgb) : undefined;
+}
+function rangeColorToHsl(color, index, useIndex = true) {
+    const rgb = rangeColorToRgb(color, index, useIndex);
+    return rgb ? rgbToHsl(rgb) : undefined;
+}
+function rgbToHsl(color) {
+    const r1 = color.r / 255, g1 = color.g / 255, b1 = color.b / 255, max = Math.max(r1, g1, b1), min = Math.min(r1, g1, b1), res = {
+        h: 0,
+        l: (max + min) / 2,
+        s: 0,
+    };
+    if (max !== min) {
+        res.s = res.l < 0.5 ? (max - min) / (max + min) : (max - min) / (2.0 - max - min);
+        res.h =
+            r1 === max
+                ? (g1 - b1) / (max - min)
+                : (res.h = g1 === max ? 2.0 + (b1 - r1) / (max - min) : 4.0 + (r1 - g1) / (max - min));
+    }
+    res.l *= 100;
+    res.s *= 100;
+    res.h *= 60;
+    if (res.h < 0) {
+        res.h += 360;
+    }
+    if (res.h >= 360) {
+        res.h -= 360;
+    }
+    return res;
+}
+function stringToAlpha(input) {
+    return stringToRgba(input)?.a;
+}
+function stringToRgb(input) {
+    return stringToRgba(input);
+}
+function hslToRgb(hsl) {
+    const result = { b: 0, g: 0, r: 0 }, hslPercent = {
+        h: hsl.h / 360,
+        l: hsl.l / 100,
+        s: hsl.s / 100,
+    };
+    if (!hslPercent.s) {
+        result.r = result.g = result.b = hslPercent.l;
+    }
+    else {
+        const q = hslPercent.l < 0.5
+            ? hslPercent.l * (1 + hslPercent.s)
+            : hslPercent.l + hslPercent.s - hslPercent.l * hslPercent.s, p = 2 * hslPercent.l - q;
+        result.r = hue2rgb(p, q, hslPercent.h + 1 / 3);
+        result.g = hue2rgb(p, q, hslPercent.h);
+        result.b = hue2rgb(p, q, hslPercent.h - 1 / 3);
+    }
+    result.r = Math.floor(result.r * 255);
+    result.g = Math.floor(result.g * 255);
+    result.b = Math.floor(result.b * 255);
+    return result;
+}
+function hslaToRgba(hsla) {
+    const rgbResult = hslToRgb(hsla);
+    return {
+        a: hsla.a,
+        b: rgbResult.b,
+        g: rgbResult.g,
+        r: rgbResult.r,
+    };
+}
+function getRandomRgbColor(min) {
+    const fixedMin = min ?? 0;
+    return {
+        b: Math.floor(randomInRange(NumberUtils_setRangeValue(fixedMin, 256))),
+        g: Math.floor(randomInRange(NumberUtils_setRangeValue(fixedMin, 256))),
+        r: Math.floor(randomInRange(NumberUtils_setRangeValue(fixedMin, 256))),
+    };
+}
+function getStyleFromRgb(color, opacity) {
+    return `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity ?? 1})`;
+}
+function getStyleFromHsl(color, opacity) {
+    return `hsla(${color.h}, ${color.s}%, ${color.l}%, ${opacity ?? 1})`;
+}
+function colorMix(color1, color2, size1, size2) {
+    let rgb1 = color1, rgb2 = color2;
+    if (rgb1.r === undefined) {
+        rgb1 = hslToRgb(color1);
+    }
+    if (rgb2.r === undefined) {
+        rgb2 = hslToRgb(color2);
+    }
+    return {
+        b: mix(rgb1.b, rgb2.b, size1, size2),
+        g: mix(rgb1.g, rgb2.g, size1, size2),
+        r: mix(rgb1.r, rgb2.r, size1, size2),
+    };
+}
+function getLinkColor(p1, p2, linkColor) {
+    if (linkColor === randomColorValue) {
+        return getRandomRgbColor();
+    }
+    else if (linkColor === midColorValue) {
+        const sourceColor = p1.getFillColor() ?? p1.getStrokeColor(), destColor = p2?.getFillColor() ?? p2?.getStrokeColor();
+        if (sourceColor && destColor && p2) {
+            return colorMix(sourceColor, destColor, p1.getRadius(), p2.getRadius());
+        }
+        else {
+            const hslColor = sourceColor ?? destColor;
+            if (hslColor) {
+                return hslToRgb(hslColor);
+            }
+        }
+    }
+    else {
+        return linkColor;
+    }
+}
+function getLinkRandomColor(optColor, blink, consent) {
+    const color = typeof optColor === "string" ? optColor : optColor.value;
+    if (color === randomColorValue) {
+        if (consent) {
+            return rangeColorToRgb({
+                value: color,
+            });
+        }
+        if (blink) {
+            return randomColorValue;
+        }
+        return midColorValue;
+    }
+    else if (color === midColorValue) {
+        return midColorValue;
+    }
+    else {
+        return rangeColorToRgb({
+            value: color,
+        });
+    }
+}
+function getHslFromAnimation(animation) {
+    return animation !== undefined
+        ? {
+            h: animation.h.value,
+            s: animation.s.value,
+            l: animation.l.value,
+        }
+        : undefined;
+}
+function getHslAnimationFromHsl(hsl, animationOptions, reduceFactor) {
+    const resColor = {
+        h: {
+            enable: false,
+            value: hsl.h,
+        },
+        s: {
+            enable: false,
+            value: hsl.s,
+        },
+        l: {
+            enable: false,
+            value: hsl.l,
+        },
+    };
+    if (animationOptions) {
+        setColorAnimation(resColor.h, animationOptions.h, reduceFactor);
+        setColorAnimation(resColor.s, animationOptions.s, reduceFactor);
+        setColorAnimation(resColor.l, animationOptions.l, reduceFactor);
+    }
+    return resColor;
+}
+function setColorAnimation(colorValue, colorAnimation, reduceFactor) {
+    colorValue.enable = colorAnimation.enable;
+    if (colorValue.enable) {
+        colorValue.velocity = (getRangeValue(colorAnimation.speed) / 100) * reduceFactor;
+        colorValue.decay = 1 - getRangeValue(colorAnimation.decay);
+        colorValue.status = "increasing";
+        colorValue.loops = 0;
+        colorValue.maxLoops = getRangeValue(colorAnimation.count);
+        colorValue.time = 0;
+        colorValue.delayTime = getRangeValue(colorAnimation.delay) * 1000;
+        if (!colorAnimation.sync) {
+            colorValue.velocity *= getRandom();
+            colorValue.value *= getRandom();
+        }
+        colorValue.initialValue = colorValue.value;
+    }
+    else {
+        colorValue.velocity = 0;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Utils/CanvasUtils.js
+
+function drawLine(context, begin, end) {
+    context.beginPath();
+    context.moveTo(begin.x, begin.y);
+    context.lineTo(end.x, end.y);
+    context.closePath();
+}
+function drawTriangle(context, p1, p2, p3) {
+    context.beginPath();
+    context.moveTo(p1.x, p1.y);
+    context.lineTo(p2.x, p2.y);
+    context.lineTo(p3.x, p3.y);
+    context.closePath();
+}
+function paintBase(context, dimension, baseColor) {
+    context.fillStyle = baseColor ?? "rgba(0,0,0,0)";
+    context.fillRect(0, 0, dimension.width, dimension.height);
+}
+function paintImage(context, dimension, image, opacity) {
+    if (!image) {
+        return;
+    }
+    context.globalAlpha = opacity;
+    context.drawImage(image, 0, 0, dimension.width, dimension.height);
+    context.globalAlpha = 1;
+}
+function clear(context, dimension) {
+    context.clearRect(0, 0, dimension.width, dimension.height);
+}
+function drawParticle(data) {
+    const { container, context, particle, delta, colorStyles, backgroundMask, composite, radius, opacity, shadow, transform, } = data;
+    const pos = particle.getPosition(), angle = particle.rotation + (particle.pathRotation ? particle.velocity.angle : 0), rotateData = {
+        sin: Math.sin(angle),
+        cos: Math.cos(angle),
+    }, transformData = {
+        a: rotateData.cos * (transform.a ?? 1),
+        b: rotateData.sin * (transform.b ?? 1),
+        c: -rotateData.sin * (transform.c ?? 1),
+        d: rotateData.cos * (transform.d ?? 1),
+    };
+    context.setTransform(transformData.a, transformData.b, transformData.c, transformData.d, pos.x, pos.y);
+    context.beginPath();
+    if (backgroundMask) {
+        context.globalCompositeOperation = composite;
+    }
+    const shadowColor = particle.shadowColor;
+    if (shadow.enable && shadowColor) {
+        context.shadowBlur = shadow.blur;
+        context.shadowColor = getStyleFromRgb(shadowColor);
+        context.shadowOffsetX = shadow.offset.x;
+        context.shadowOffsetY = shadow.offset.y;
+    }
+    if (colorStyles.fill) {
+        context.fillStyle = colorStyles.fill;
+    }
+    const strokeWidth = particle.strokeWidth ?? 0;
+    context.lineWidth = strokeWidth;
+    if (colorStyles.stroke) {
+        context.strokeStyle = colorStyles.stroke;
+    }
+    drawShape(container, context, particle, radius, opacity, delta);
+    if (strokeWidth > 0) {
+        context.stroke();
+    }
+    if (particle.close) {
+        context.closePath();
+    }
+    if (particle.fill) {
+        context.fill();
+    }
+    drawShapeAfterEffect(container, context, particle, radius, opacity, delta);
+    context.globalCompositeOperation = "source-over";
+    context.setTransform(1, 0, 0, 1, 0, 0);
+}
+function drawShape(container, context, particle, radius, opacity, delta) {
+    if (!particle.shape) {
+        return;
+    }
+    const drawer = container.drawers.get(particle.shape);
+    if (!drawer) {
+        return;
+    }
+    drawer.draw(context, particle, radius, opacity, delta, container.retina.pixelRatio);
+}
+function drawShapeAfterEffect(container, context, particle, radius, opacity, delta) {
+    if (!particle.shape) {
+        return;
+    }
+    const drawer = container.drawers.get(particle.shape);
+    if (!drawer || !drawer.afterEffect) {
+        return;
+    }
+    drawer.afterEffect(context, particle, radius, opacity, delta, container.retina.pixelRatio);
+}
+function drawPlugin(context, plugin, delta) {
+    if (!plugin.draw) {
+        return;
+    }
+    plugin.draw(context, delta);
+}
+function drawParticlePlugin(context, plugin, particle, delta) {
+    if (!plugin.drawParticle) {
+        return;
+    }
+    plugin.drawParticle(context, particle, delta);
+}
+function alterHsl(color, type, value) {
+    return {
+        h: color.h,
+        s: color.s,
+        l: color.l + (type === "darken" ? -1 : 1) * value,
+    };
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Canvas.js
+
+
+
+
+function setTransformValue(factor, newFactor, key) {
+    const newValue = newFactor[key];
+    if (newValue !== undefined) {
+        factor[key] = (factor[key] ?? 1) * newValue;
+    }
+}
+class Canvas {
+    constructor(container) {
+        this.container = container;
+        this._applyPostDrawUpdaters = (particle) => {
+            for (const updater of this._postDrawUpdaters) {
+                updater.afterDraw && updater.afterDraw(particle);
+            }
+        };
+        this._applyPreDrawUpdaters = (ctx, particle, radius, zOpacity, colorStyles, transform) => {
+            for (const updater of this._preDrawUpdaters) {
+                if (updater.getColorStyles) {
+                    const { fill, stroke } = updater.getColorStyles(particle, ctx, radius, zOpacity);
+                    if (fill) {
+                        colorStyles.fill = fill;
+                    }
+                    if (stroke) {
+                        colorStyles.stroke = stroke;
+                    }
+                }
+                if (updater.getTransformValues) {
+                    const updaterTransform = updater.getTransformValues(particle);
+                    for (const key in updaterTransform) {
+                        setTransformValue(transform, updaterTransform, key);
+                    }
+                }
+                updater.beforeDraw && updater.beforeDraw(particle);
+            }
+        };
+        this._applyResizePlugins = () => {
+            for (const plugin of this._resizePlugins) {
+                plugin.resize && plugin.resize();
+            }
+        };
+        this._getPluginParticleColors = (particle) => {
+            let fColor, sColor;
+            for (const plugin of this._colorPlugins) {
+                if (!fColor && plugin.particleFillColor) {
+                    fColor = rangeColorToHsl(plugin.particleFillColor(particle));
+                }
+                if (!sColor && plugin.particleStrokeColor) {
+                    sColor = rangeColorToHsl(plugin.particleStrokeColor(particle));
+                }
+                if (fColor && sColor) {
+                    break;
+                }
+            }
+            return [fColor, sColor];
+        };
+        this._initCover = () => {
+            const options = this.container.actualOptions, cover = options.backgroundMask.cover, color = cover.color, coverRgb = rangeColorToRgb(color);
+            if (coverRgb) {
+                const coverColor = {
+                    ...coverRgb,
+                    a: cover.opacity,
+                };
+                this._coverColorStyle = getStyleFromRgb(coverColor, coverColor.a);
+            }
+        };
+        this._initStyle = () => {
+            const element = this.element, options = this.container.actualOptions;
+            if (!element) {
+                return;
+            }
+            if (this._fullScreen) {
+                this._originalStyle = deepExtend({}, element.style);
+                this._setFullScreenStyle();
+            }
+            else {
+                this._resetOriginalStyle();
+            }
+            for (const key in options.style) {
+                if (!key || !options.style) {
+                    continue;
+                }
+                const value = options.style[key];
+                if (!value) {
+                    continue;
+                }
+                element.style.setProperty(key, value, "important");
+            }
+        };
+        this._initTrail = async () => {
+            const options = this.container.actualOptions, trail = options.particles.move.trail, trailFill = trail.fill;
+            if (!trail.enable) {
+                return;
+            }
+            if (trailFill.color) {
+                const fillColor = rangeColorToRgb(trailFill.color);
+                if (!fillColor) {
+                    return;
+                }
+                const trail = options.particles.move.trail;
+                this._trailFill = {
+                    color: {
+                        ...fillColor,
+                    },
+                    opacity: 1 / trail.length,
+                };
+            }
+            else {
+                await new Promise((resolve, reject) => {
+                    if (!trailFill.image) {
+                        return;
+                    }
+                    const img = document.createElement("img");
+                    img.addEventListener("load", () => {
+                        this._trailFill = {
+                            image: img,
+                            opacity: 1 / trail.length,
+                        };
+                        resolve();
+                    });
+                    img.addEventListener("error", (evt) => {
+                        reject(evt.error);
+                    });
+                    img.src = trailFill.image;
+                });
+            }
+        };
+        this._paintBase = (baseColor) => {
+            this.draw((ctx) => paintBase(ctx, this.size, baseColor));
+        };
+        this._paintImage = (image, opacity) => {
+            this.draw((ctx) => paintImage(ctx, this.size, image, opacity));
+        };
+        this._repairStyle = () => {
+            const element = this.element;
+            if (!element) {
+                return;
+            }
+            this._safeMutationObserver((observer) => observer.disconnect());
+            this._initStyle();
+            this.initBackground();
+            this._safeMutationObserver((observer) => observer.observe(element, { attributes: true }));
+        };
+        this._resetOriginalStyle = () => {
+            const element = this.element, originalStyle = this._originalStyle;
+            if (!(element && originalStyle)) {
+                return;
+            }
+            const style = element.style;
+            style.position = originalStyle.position;
+            style.zIndex = originalStyle.zIndex;
+            style.top = originalStyle.top;
+            style.left = originalStyle.left;
+            style.width = originalStyle.width;
+            style.height = originalStyle.height;
+        };
+        this._safeMutationObserver = (callback) => {
+            if (!this._mutationObserver) {
+                return;
+            }
+            callback(this._mutationObserver);
+        };
+        this._setFullScreenStyle = () => {
+            const element = this.element;
+            if (!element) {
+                return;
+            }
+            const priority = "important", style = element.style;
+            style.setProperty("position", "fixed", priority);
+            style.setProperty("z-index", this.container.actualOptions.fullScreen.zIndex.toString(10), priority);
+            style.setProperty("top", "0", priority);
+            style.setProperty("left", "0", priority);
+            style.setProperty("width", "100%", priority);
+            style.setProperty("height", "100%", priority);
+        };
+        this.size = {
+            height: 0,
+            width: 0,
+        };
+        this._context = null;
+        this._generated = false;
+        this._preDrawUpdaters = [];
+        this._postDrawUpdaters = [];
+        this._resizePlugins = [];
+        this._colorPlugins = [];
+        this._mutationObserver =
+            !isSsr() && typeof MutationObserver !== "undefined"
+                ? new MutationObserver((records) => {
+                    for (const record of records) {
+                        if (record.type === "attributes" && record.attributeName === "style") {
+                            this._repairStyle();
+                        }
+                    }
+                })
+                : undefined;
+    }
+    get _fullScreen() {
+        return this.container.actualOptions.fullScreen.enable;
+    }
+    clear() {
+        const options = this.container.actualOptions, trail = options.particles.move.trail, trailFill = this._trailFill;
+        if (options.backgroundMask.enable) {
+            this.paint();
+        }
+        else if (trail.enable && trail.length > 0 && trailFill) {
+            if (trailFill.color) {
+                this._paintBase(getStyleFromRgb(trailFill.color, trailFill.opacity));
+            }
+            else if (trailFill.image) {
+                this._paintImage(trailFill.image, trailFill.opacity);
+            }
+        }
+        else {
+            this.draw((ctx) => {
+                clear(ctx, this.size);
+            });
+        }
+    }
+    destroy() {
+        this._safeMutationObserver((obs) => obs.disconnect());
+        if (this._generated) {
+            const element = this.element;
+            element && element.remove();
+        }
+        else {
+            this._resetOriginalStyle();
+        }
+        this.stop();
+        this._preDrawUpdaters = [];
+        this._postDrawUpdaters = [];
+        this._resizePlugins = [];
+        this._colorPlugins = [];
+    }
+    draw(cb) {
+        const ctx = this._context;
+        if (!ctx) {
+            return;
+        }
+        return cb(ctx);
+    }
+    drawParticle(particle, delta) {
+        if (particle.spawning || particle.destroyed) {
+            return;
+        }
+        const radius = particle.getRadius();
+        if (radius <= 0) {
+            return;
+        }
+        const pfColor = particle.getFillColor(), psColor = particle.getStrokeColor() ?? pfColor;
+        let [fColor, sColor] = this._getPluginParticleColors(particle);
+        if (!fColor) {
+            fColor = pfColor;
+        }
+        if (!sColor) {
+            sColor = psColor;
+        }
+        if (!fColor && !sColor) {
+            return;
+        }
+        this.draw((ctx) => {
+            const container = this.container, options = container.actualOptions, zIndexOptions = particle.options.zIndex, zOpacityFactor = (1 - particle.zIndexFactor) ** zIndexOptions.opacityRate, opacity = particle.bubble.opacity ?? particle.opacity?.value ?? 1, strokeOpacity = particle.strokeOpacity ?? opacity, zOpacity = opacity * zOpacityFactor, zStrokeOpacity = strokeOpacity * zOpacityFactor, transform = {}, colorStyles = {
+                fill: fColor ? getStyleFromHsl(fColor, zOpacity) : undefined,
+            };
+            colorStyles.stroke = sColor ? getStyleFromHsl(sColor, zStrokeOpacity) : colorStyles.fill;
+            this._applyPreDrawUpdaters(ctx, particle, radius, zOpacity, colorStyles, transform);
+            drawParticle({
+                container,
+                context: ctx,
+                particle,
+                delta,
+                colorStyles,
+                backgroundMask: options.backgroundMask.enable,
+                composite: options.backgroundMask.composite,
+                radius: radius * (1 - particle.zIndexFactor) ** zIndexOptions.sizeRate,
+                opacity: zOpacity,
+                shadow: particle.options.shadow,
+                transform,
+            });
+            this._applyPostDrawUpdaters(particle);
+        });
+    }
+    drawParticlePlugin(plugin, particle, delta) {
+        this.draw((ctx) => drawParticlePlugin(ctx, plugin, particle, delta));
+    }
+    drawPlugin(plugin, delta) {
+        this.draw((ctx) => drawPlugin(ctx, plugin, delta));
+    }
+    async init() {
+        this.resize();
+        this._initStyle();
+        this._initCover();
+        try {
+            await this._initTrail();
+        }
+        catch (e) {
+            console.error(e);
+        }
+        this.initBackground();
+        this._safeMutationObserver((obs) => {
+            if (!this.element) {
+                return;
+            }
+            obs.observe(this.element, { attributes: true });
+        });
+        this.initUpdaters();
+        this.initPlugins();
+        this.paint();
+    }
+    initBackground() {
+        const options = this.container.actualOptions, background = options.background, element = this.element;
+        if (!element) {
+            return;
+        }
+        const elementStyle = element.style;
+        if (!elementStyle) {
+            return;
+        }
+        if (background.color) {
+            const color = rangeColorToRgb(background.color);
+            elementStyle.backgroundColor = color ? getStyleFromRgb(color, background.opacity) : "";
+        }
+        else {
+            elementStyle.backgroundColor = "";
+        }
+        elementStyle.backgroundImage = background.image || "";
+        elementStyle.backgroundPosition = background.position || "";
+        elementStyle.backgroundRepeat = background.repeat || "";
+        elementStyle.backgroundSize = background.size || "";
+    }
+    initPlugins() {
+        this._resizePlugins = [];
+        for (const [, plugin] of this.container.plugins) {
+            if (plugin.resize) {
+                this._resizePlugins.push(plugin);
+            }
+            if (plugin.particleFillColor || plugin.particleStrokeColor) {
+                this._colorPlugins.push(plugin);
+            }
+        }
+    }
+    initUpdaters() {
+        this._preDrawUpdaters = [];
+        this._postDrawUpdaters = [];
+        for (const updater of this.container.particles.updaters) {
+            if (updater.afterDraw) {
+                this._postDrawUpdaters.push(updater);
+            }
+            if (updater.getColorStyles || updater.getTransformValues || updater.beforeDraw) {
+                this._preDrawUpdaters.push(updater);
+            }
+        }
+    }
+    loadCanvas(canvas) {
+        if (this._generated && this.element) {
+            this.element.remove();
+        }
+        this._generated =
+            canvas.dataset && generatedAttribute in canvas.dataset
+                ? canvas.dataset[generatedAttribute] === "true"
+                : this._generated;
+        this.element = canvas;
+        this.element.ariaHidden = "true";
+        this._originalStyle = deepExtend({}, this.element.style);
+        this.size.height = canvas.offsetHeight;
+        this.size.width = canvas.offsetWidth;
+        this._context = this.element.getContext("2d");
+        this._safeMutationObserver((obs) => {
+            if (!this.element) {
+                return;
+            }
+            obs.observe(this.element, { attributes: true });
+        });
+        this.container.retina.init();
+        this.initBackground();
+    }
+    paint() {
+        const options = this.container.actualOptions;
+        this.draw((ctx) => {
+            if (options.backgroundMask.enable && options.backgroundMask.cover) {
+                clear(ctx, this.size);
+                this._paintBase(this._coverColorStyle);
+            }
+            else {
+                this._paintBase();
+            }
+        });
+    }
+    resize() {
+        if (!this.element) {
+            return false;
+        }
+        const container = this.container, pxRatio = container.retina.pixelRatio, size = container.canvas.size, newSize = {
+            width: this.element.offsetWidth * pxRatio,
+            height: this.element.offsetHeight * pxRatio,
+        };
+        if (newSize.height === size.height &&
+            newSize.width === size.width &&
+            newSize.height === this.element.height &&
+            newSize.width === this.element.width) {
+            return false;
+        }
+        const oldSize = { ...size };
+        this.element.width = size.width = this.element.offsetWidth * pxRatio;
+        this.element.height = size.height = this.element.offsetHeight * pxRatio;
+        if (this.container.started) {
+            this.resizeFactor = {
+                width: size.width / oldSize.width,
+                height: size.height / oldSize.height,
+            };
+        }
+        return true;
+    }
+    stop() {
+        this.draw((ctx) => clear(ctx, this.size));
+    }
+    async windowResize() {
+        if (!this.element || !this.resize()) {
+            return;
+        }
+        const container = this.container, needsRefresh = container.updateActualOptions();
+        container.particles.setDensity();
+        this._applyResizePlugins();
+        if (needsRefresh) {
+            await container.refresh();
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/EventListeners.js
+
+
+function manageListener(element, event, handler, add, options) {
+    if (add) {
+        let addOptions = { passive: true };
+        if (typeof options === "boolean") {
+            addOptions.capture = options;
+        }
+        else if (options !== undefined) {
+            addOptions = options;
+        }
+        element.addEventListener(event, handler, addOptions);
+    }
+    else {
+        const removeOptions = options;
+        element.removeEventListener(event, handler, removeOptions);
+    }
+}
+class EventListeners {
+    constructor(container) {
+        this.container = container;
+        this._doMouseTouchClick = (e) => {
+            const container = this.container, options = container.actualOptions;
+            if (this._canPush) {
+                const mouseInteractivity = container.interactivity.mouse, mousePos = mouseInteractivity.position;
+                if (!mousePos) {
+                    return;
+                }
+                mouseInteractivity.clickPosition = { ...mousePos };
+                mouseInteractivity.clickTime = new Date().getTime();
+                const onClick = options.interactivity.events.onClick;
+                executeOnSingleOrMultiple(onClick.mode, (mode) => this.container.handleClickMode(mode));
+            }
+            if (e.type === "touchend") {
+                setTimeout(() => this._mouseTouchFinish(), 500);
+            }
+        };
+        this._handleThemeChange = (e) => {
+            const mediaEvent = e, container = this.container, options = container.options, defaultThemes = options.defaultThemes, themeName = mediaEvent.matches ? defaultThemes.dark : defaultThemes.light, theme = options.themes.find((theme) => theme.name === themeName);
+            if (theme && theme.default.auto) {
+                container.loadTheme(themeName);
+            }
+        };
+        this._handleVisibilityChange = () => {
+            const container = this.container, options = container.actualOptions;
+            this._mouseTouchFinish();
+            if (!options.pauseOnBlur) {
+                return;
+            }
+            if (document && document.hidden) {
+                container.pageHidden = true;
+                container.pause();
+            }
+            else {
+                container.pageHidden = false;
+                if (container.getAnimationStatus()) {
+                    container.play(true);
+                }
+                else {
+                    container.draw(true);
+                }
+            }
+        };
+        this._handleWindowResize = async () => {
+            if (this._resizeTimeout) {
+                clearTimeout(this._resizeTimeout);
+                delete this._resizeTimeout;
+            }
+            this._resizeTimeout = setTimeout(async () => {
+                const canvas = this.container.canvas;
+                canvas && (await canvas.windowResize());
+            }, this.container.actualOptions.interactivity.events.resize.delay * 1000);
+        };
+        this._manageInteractivityListeners = (mouseLeaveTmpEvent, add) => {
+            const handlers = this._handlers, container = this.container, options = container.actualOptions;
+            const interactivityEl = container.interactivity.element;
+            if (!interactivityEl) {
+                return;
+            }
+            const html = interactivityEl, canvasEl = container.canvas.element;
+            if (canvasEl) {
+                canvasEl.style.pointerEvents = html === canvasEl ? "initial" : "none";
+            }
+            if (!(options.interactivity.events.onHover.enable || options.interactivity.events.onClick.enable)) {
+                return;
+            }
+            manageListener(interactivityEl, mouseMoveEvent, handlers.mouseMove, add);
+            manageListener(interactivityEl, touchStartEvent, handlers.touchStart, add);
+            manageListener(interactivityEl, touchMoveEvent, handlers.touchMove, add);
+            if (!options.interactivity.events.onClick.enable) {
+                manageListener(interactivityEl, touchEndEvent, handlers.touchEnd, add);
+            }
+            else {
+                manageListener(interactivityEl, touchEndEvent, handlers.touchEndClick, add);
+                manageListener(interactivityEl, mouseUpEvent, handlers.mouseUp, add);
+                manageListener(interactivityEl, mouseDownEvent, handlers.mouseDown, add);
+            }
+            manageListener(interactivityEl, mouseLeaveTmpEvent, handlers.mouseLeave, add);
+            manageListener(interactivityEl, touchCancelEvent, handlers.touchCancel, add);
+        };
+        this._manageListeners = (add) => {
+            const handlers = this._handlers, container = this.container, options = container.actualOptions, detectType = options.interactivity.detectsOn, canvasEl = container.canvas.element;
+            let mouseLeaveTmpEvent = mouseLeaveEvent;
+            if (detectType === "window") {
+                container.interactivity.element = window;
+                mouseLeaveTmpEvent = mouseOutEvent;
+            }
+            else if (detectType === "parent" && canvasEl) {
+                container.interactivity.element = canvasEl.parentElement ?? canvasEl.parentNode;
+            }
+            else {
+                container.interactivity.element = canvasEl;
+            }
+            this._manageMediaMatch(add);
+            this._manageResize(add);
+            this._manageInteractivityListeners(mouseLeaveTmpEvent, add);
+            if (document) {
+                manageListener(document, visibilityChangeEvent, handlers.visibilityChange, add, false);
+            }
+        };
+        this._manageMediaMatch = (add) => {
+            const handlers = this._handlers, mediaMatch = safeMatchMedia("(prefers-color-scheme: dark)");
+            if (!mediaMatch) {
+                return;
+            }
+            if (mediaMatch.addEventListener !== undefined) {
+                manageListener(mediaMatch, "change", handlers.themeChange, add);
+                return;
+            }
+            if (mediaMatch.addListener === undefined) {
+                return;
+            }
+            if (add) {
+                mediaMatch.addListener(handlers.oldThemeChange);
+            }
+            else {
+                mediaMatch.removeListener(handlers.oldThemeChange);
+            }
+        };
+        this._manageResize = (add) => {
+            const handlers = this._handlers, container = this.container, options = container.actualOptions;
+            if (!options.interactivity.events.resize) {
+                return;
+            }
+            if (typeof ResizeObserver === "undefined") {
+                manageListener(window, resizeEvent, handlers.resize, add);
+                return;
+            }
+            const canvasEl = container.canvas.element;
+            if (this._resizeObserver && !add) {
+                if (canvasEl) {
+                    this._resizeObserver.unobserve(canvasEl);
+                }
+                this._resizeObserver.disconnect();
+                delete this._resizeObserver;
+            }
+            else if (!this._resizeObserver && add && canvasEl) {
+                this._resizeObserver = new ResizeObserver(async (entries) => {
+                    const entry = entries.find((e) => e.target === canvasEl);
+                    if (!entry) {
+                        return;
+                    }
+                    await this._handleWindowResize();
+                });
+                this._resizeObserver.observe(canvasEl);
+            }
+        };
+        this._mouseDown = () => {
+            const { interactivity } = this.container;
+            if (!interactivity) {
+                return;
+            }
+            const { mouse } = interactivity;
+            mouse.clicking = true;
+            mouse.downPosition = mouse.position;
+        };
+        this._mouseTouchClick = (e) => {
+            const container = this.container, options = container.actualOptions, { mouse } = container.interactivity;
+            mouse.inside = true;
+            let handled = false;
+            const mousePosition = mouse.position;
+            if (!mousePosition || !options.interactivity.events.onClick.enable) {
+                return;
+            }
+            for (const [, plugin] of container.plugins) {
+                if (!plugin.clickPositionValid) {
+                    continue;
+                }
+                handled = plugin.clickPositionValid(mousePosition);
+                if (handled) {
+                    break;
+                }
+            }
+            if (!handled) {
+                this._doMouseTouchClick(e);
+            }
+            mouse.clicking = false;
+        };
+        this._mouseTouchFinish = () => {
+            const interactivity = this.container.interactivity;
+            if (!interactivity) {
+                return;
+            }
+            const mouse = interactivity.mouse;
+            delete mouse.position;
+            delete mouse.clickPosition;
+            delete mouse.downPosition;
+            interactivity.status = mouseLeaveEvent;
+            mouse.inside = false;
+            mouse.clicking = false;
+        };
+        this._mouseTouchMove = (e) => {
+            const container = this.container, options = container.actualOptions, interactivity = container.interactivity, canvasEl = container.canvas.element;
+            if (!interactivity || !interactivity.element) {
+                return;
+            }
+            interactivity.mouse.inside = true;
+            let pos;
+            if (e.type.startsWith("pointer")) {
+                this._canPush = true;
+                const mouseEvent = e;
+                if (interactivity.element === window) {
+                    if (canvasEl) {
+                        const clientRect = canvasEl.getBoundingClientRect();
+                        pos = {
+                            x: mouseEvent.clientX - clientRect.left,
+                            y: mouseEvent.clientY - clientRect.top,
+                        };
+                    }
+                }
+                else if (options.interactivity.detectsOn === "parent") {
+                    const source = mouseEvent.target, target = mouseEvent.currentTarget;
+                    if (source && target && canvasEl) {
+                        const sourceRect = source.getBoundingClientRect(), targetRect = target.getBoundingClientRect(), canvasRect = canvasEl.getBoundingClientRect();
+                        pos = {
+                            x: mouseEvent.offsetX + 2 * sourceRect.left - (targetRect.left + canvasRect.left),
+                            y: mouseEvent.offsetY + 2 * sourceRect.top - (targetRect.top + canvasRect.top),
+                        };
+                    }
+                    else {
+                        pos = {
+                            x: mouseEvent.offsetX ?? mouseEvent.clientX,
+                            y: mouseEvent.offsetY ?? mouseEvent.clientY,
+                        };
+                    }
+                }
+                else if (mouseEvent.target === canvasEl) {
+                    pos = {
+                        x: mouseEvent.offsetX ?? mouseEvent.clientX,
+                        y: mouseEvent.offsetY ?? mouseEvent.clientY,
+                    };
+                }
+            }
+            else {
+                this._canPush = e.type !== "touchmove";
+                if (canvasEl) {
+                    const touchEvent = e, lastTouch = touchEvent.touches[touchEvent.touches.length - 1], canvasRect = canvasEl.getBoundingClientRect();
+                    pos = {
+                        x: lastTouch.clientX - (canvasRect.left ?? 0),
+                        y: lastTouch.clientY - (canvasRect.top ?? 0),
+                    };
+                }
+            }
+            const pxRatio = container.retina.pixelRatio;
+            if (pos) {
+                pos.x *= pxRatio;
+                pos.y *= pxRatio;
+            }
+            interactivity.mouse.position = pos;
+            interactivity.status = mouseMoveEvent;
+        };
+        this._touchEnd = (e) => {
+            const evt = e, touches = Array.from(evt.changedTouches);
+            for (const touch of touches) {
+                this._touches.delete(touch.identifier);
+            }
+            this._mouseTouchFinish();
+        };
+        this._touchEndClick = (e) => {
+            const evt = e, touches = Array.from(evt.changedTouches);
+            for (const touch of touches) {
+                this._touches.delete(touch.identifier);
+            }
+            this._mouseTouchClick(e);
+        };
+        this._touchStart = (e) => {
+            const evt = e, touches = Array.from(evt.changedTouches);
+            for (const touch of touches) {
+                this._touches.set(touch.identifier, performance.now());
+            }
+            this._mouseTouchMove(e);
+        };
+        this._canPush = true;
+        this._touches = new Map();
+        this._handlers = {
+            mouseDown: () => this._mouseDown(),
+            mouseLeave: () => this._mouseTouchFinish(),
+            mouseMove: (e) => this._mouseTouchMove(e),
+            mouseUp: (e) => this._mouseTouchClick(e),
+            touchStart: (e) => this._touchStart(e),
+            touchMove: (e) => this._mouseTouchMove(e),
+            touchEnd: (e) => this._touchEnd(e),
+            touchCancel: (e) => this._touchEnd(e),
+            touchEndClick: (e) => this._touchEndClick(e),
+            visibilityChange: () => this._handleVisibilityChange(),
+            themeChange: (e) => this._handleThemeChange(e),
+            oldThemeChange: (e) => this._handleThemeChange(e),
+            resize: () => {
+                this._handleWindowResize();
+            },
+        };
+    }
+    addListeners() {
+        this._manageListeners(true);
+    }
+    removeListeners() {
+        this._manageListeners(false);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/FrameManager.js
+
+function initDelta(value, fpsLimit = 60, smooth = false) {
+    return {
+        value,
+        factor: smooth ? 60 / fpsLimit : (60 * value) / 1000,
+    };
+}
+class FrameManager {
+    constructor(container) {
+        this.container = container;
+    }
+    async nextFrame(timestamp) {
+        try {
+            const container = this.container;
+            if (!container.smooth &&
+                container.lastFrameTime !== undefined &&
+                timestamp < container.lastFrameTime + 1000 / container.fpsLimit) {
+                container.draw(false);
+                return;
+            }
+            container.lastFrameTime ??= timestamp;
+            const delta = initDelta(timestamp - container.lastFrameTime, container.fpsLimit, container.smooth);
+            container.addLifeTime(delta.value);
+            container.lastFrameTime = timestamp;
+            if (delta.value > 1000) {
+                container.draw(false);
+                return;
+            }
+            await container.particles.draw(delta);
+            if (!container.alive()) {
+                container.destroy();
+                return;
+            }
+            if (container.getAnimationStatus()) {
+                container.draw(false);
+            }
+        }
+        catch (e) {
+            console.error(`${errorPrefix} in animation loop`, e);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/OptionsColor.js
+class OptionsColor {
+    constructor() {
+        this.value = "";
+    }
+    static create(source, data) {
+        const color = new OptionsColor();
+        color.load(source);
+        if (data !== undefined) {
+            if (typeof data === "string" || data instanceof Array) {
+                color.load({ value: data });
+            }
+            else {
+                color.load(data);
+            }
+        }
+        return color;
+    }
+    load(data) {
+        if (data?.value === undefined) {
+            return;
+        }
+        this.value = data.value;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Background/Background.js
+
+class Background {
+    constructor() {
+        this.color = new OptionsColor();
+        this.color.value = "";
+        this.image = "";
+        this.position = "";
+        this.repeat = "";
+        this.size = "";
+        this.opacity = 1;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.color !== undefined) {
+            this.color = OptionsColor.create(this.color, data.color);
+        }
+        if (data.image !== undefined) {
+            this.image = data.image;
+        }
+        if (data.position !== undefined) {
+            this.position = data.position;
+        }
+        if (data.repeat !== undefined) {
+            this.repeat = data.repeat;
+        }
+        if (data.size !== undefined) {
+            this.size = data.size;
+        }
+        if (data.opacity !== undefined) {
+            this.opacity = data.opacity;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/BackgroundMask/BackgroundMaskCover.js
+
+class BackgroundMaskCover {
+    constructor() {
+        this.color = new OptionsColor();
+        this.color.value = "#fff";
+        this.opacity = 1;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.color !== undefined) {
+            this.color = OptionsColor.create(this.color, data.color);
+        }
+        if (data.opacity !== undefined) {
+            this.opacity = data.opacity;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/BackgroundMask/BackgroundMask.js
+
+class BackgroundMask {
+    constructor() {
+        this.composite = "destination-out";
+        this.cover = new BackgroundMaskCover();
+        this.enable = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.composite !== undefined) {
+            this.composite = data.composite;
+        }
+        if (data.cover !== undefined) {
+            const cover = data.cover;
+            const color = (typeof data.cover === "string" ? { color: data.cover } : data.cover);
+            this.cover.load(cover.color !== undefined ? cover : { color: color });
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/FullScreen/FullScreen.js
+class FullScreen {
+    constructor() {
+        this.enable = true;
+        this.zIndex = 0;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.zIndex !== undefined) {
+            this.zIndex = data.zIndex;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Interactivity/Events/ClickEvent.js
+class ClickEvent {
+    constructor() {
+        this.enable = false;
+        this.mode = [];
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.mode !== undefined) {
+            this.mode = data.mode;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Interactivity/Events/DivEvent.js
+
+class DivEvent {
+    constructor() {
+        this.selectors = [];
+        this.enable = false;
+        this.mode = [];
+        this.type = "circle";
+    }
+    get el() {
+        return this.elementId;
+    }
+    set el(value) {
+        this.elementId = value;
+    }
+    get elementId() {
+        return this.ids;
+    }
+    set elementId(value) {
+        this.ids = value;
+    }
+    get ids() {
+        return executeOnSingleOrMultiple(this.selectors, (t) => t.replace("#", ""));
+    }
+    set ids(value) {
+        this.selectors = executeOnSingleOrMultiple(value, (t) => `#${t}`);
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        const ids = data.ids ?? data.elementId ?? data.el;
+        if (ids !== undefined) {
+            this.ids = ids;
+        }
+        if (data.selectors !== undefined) {
+            this.selectors = data.selectors;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.mode !== undefined) {
+            this.mode = data.mode;
+        }
+        if (data.type !== undefined) {
+            this.type = data.type;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Interactivity/Events/Parallax.js
+class Parallax {
+    constructor() {
+        this.enable = false;
+        this.force = 2;
+        this.smooth = 10;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.force !== undefined) {
+            this.force = data.force;
+        }
+        if (data.smooth !== undefined) {
+            this.smooth = data.smooth;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Interactivity/Events/HoverEvent.js
+
+class HoverEvent {
+    constructor() {
+        this.enable = false;
+        this.mode = [];
+        this.parallax = new Parallax();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.mode !== undefined) {
+            this.mode = data.mode;
+        }
+        this.parallax.load(data.parallax);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Interactivity/Events/ResizeEvent.js
+class ResizeEvent {
+    constructor() {
+        this.delay = 0.5;
+        this.enable = true;
+    }
+    load(data) {
+        if (data === undefined) {
+            return;
+        }
+        if (data.delay !== undefined) {
+            this.delay = data.delay;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Interactivity/Events/Events.js
+
+
+
+
+
+class Events {
+    constructor() {
+        this.onClick = new ClickEvent();
+        this.onDiv = new DivEvent();
+        this.onHover = new HoverEvent();
+        this.resize = new ResizeEvent();
+    }
+    get onclick() {
+        return this.onClick;
+    }
+    set onclick(value) {
+        this.onClick = value;
+    }
+    get ondiv() {
+        return this.onDiv;
+    }
+    set ondiv(value) {
+        this.onDiv = value;
+    }
+    get onhover() {
+        return this.onHover;
+    }
+    set onhover(value) {
+        this.onHover = value;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        this.onClick.load(data.onClick ?? data.onclick);
+        const onDiv = data.onDiv ?? data.ondiv;
+        if (onDiv !== undefined) {
+            this.onDiv = executeOnSingleOrMultiple(onDiv, (t) => {
+                const tmp = new DivEvent();
+                tmp.load(t);
+                return tmp;
+            });
+        }
+        this.onHover.load(data.onHover ?? data.onhover);
+        if (typeof data.resize === "boolean") {
+            this.resize.enable = data.resize;
+        }
+        else {
+            this.resize.load(data.resize);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Interactivity/Modes/Modes.js
+class Modes {
+    constructor(engine, container) {
+        this._engine = engine;
+        this._container = container;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (!this._container) {
+            return;
+        }
+        const interactors = this._engine.plugins.interactors.get(this._container);
+        if (!interactors) {
+            return;
+        }
+        for (const interactor of interactors) {
+            if (!interactor.loadModeOptions) {
+                continue;
+            }
+            interactor.loadModeOptions(this, data);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Interactivity/Interactivity.js
+
+
+class Interactivity {
+    constructor(engine, container) {
+        this.detectsOn = "window";
+        this.events = new Events();
+        this.modes = new Modes(engine, container);
+    }
+    get detect_on() {
+        return this.detectsOn;
+    }
+    set detect_on(value) {
+        this.detectsOn = value;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        const detectsOn = data.detectsOn ?? data.detect_on;
+        if (detectsOn !== undefined) {
+            this.detectsOn = detectsOn;
+        }
+        this.events.load(data.events);
+        this.modes.load(data.modes);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/ManualParticle.js
+
+class ManualParticle {
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.position) {
+            this.position = {
+                x: data.position.x ?? 50,
+                y: data.position.y ?? 50,
+                mode: data.position.mode ?? "percent",
+            };
+        }
+        if (data.options) {
+            this.options = deepExtend({}, data.options);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Responsive.js
+
+class Responsive {
+    constructor() {
+        this.maxWidth = Infinity;
+        this.options = {};
+        this.mode = "canvas";
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.maxWidth !== undefined) {
+            this.maxWidth = data.maxWidth;
+        }
+        if (data.mode !== undefined) {
+            if (data.mode === "screen") {
+                this.mode = "screen";
+            }
+            else {
+                this.mode = "canvas";
+            }
+        }
+        if (data.options !== undefined) {
+            this.options = deepExtend({}, data.options);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Theme/ThemeDefault.js
+class ThemeDefault {
+    constructor() {
+        this.auto = false;
+        this.mode = "any";
+        this.value = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.auto !== undefined) {
+            this.auto = data.auto;
+        }
+        if (data.mode !== undefined) {
+            this.mode = data.mode;
+        }
+        if (data.value !== undefined) {
+            this.value = data.value;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Theme/Theme.js
+
+
+class Theme {
+    constructor() {
+        this.name = "";
+        this.default = new ThemeDefault();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.name !== undefined) {
+            this.name = data.name;
+        }
+        this.default.load(data.default);
+        if (data.options !== undefined) {
+            this.options = deepExtend({}, data.options);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/ColorAnimation.js
+
+class ColorAnimation {
+    constructor() {
+        this.count = 0;
+        this.enable = false;
+        this.offset = 0;
+        this.speed = 1;
+        this.delay = 0;
+        this.decay = 0;
+        this.sync = true;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.count !== undefined) {
+            this.count = NumberUtils_setRangeValue(data.count);
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.offset !== undefined) {
+            this.offset = NumberUtils_setRangeValue(data.offset);
+        }
+        if (data.speed !== undefined) {
+            this.speed = NumberUtils_setRangeValue(data.speed);
+        }
+        if (data.decay !== undefined) {
+            this.decay = NumberUtils_setRangeValue(data.decay);
+        }
+        if (data.delay !== undefined) {
+            this.delay = NumberUtils_setRangeValue(data.delay);
+        }
+        if (data.sync !== undefined) {
+            this.sync = data.sync;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/HslAnimation.js
+
+class HslAnimation {
+    constructor() {
+        this.h = new ColorAnimation();
+        this.s = new ColorAnimation();
+        this.l = new ColorAnimation();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        this.h.load(data.h);
+        this.s.load(data.s);
+        this.l.load(data.l);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/AnimatableColor.js
+
+
+class AnimatableColor extends OptionsColor {
+    constructor() {
+        super();
+        this.animation = new HslAnimation();
+    }
+    static create(source, data) {
+        const color = new AnimatableColor();
+        color.load(source);
+        if (data !== undefined) {
+            if (typeof data === "string" || data instanceof Array) {
+                color.load({ value: data });
+            }
+            else {
+                color.load(data);
+            }
+        }
+        return color;
+    }
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        const colorAnimation = data.animation;
+        if (colorAnimation !== undefined) {
+            if (colorAnimation.enable !== undefined) {
+                this.animation.h.load(colorAnimation);
+            }
+            else {
+                this.animation.load(data.animation);
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Collisions/CollisionsAbsorb.js
+class CollisionsAbsorb {
+    constructor() {
+        this.speed = 2;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.speed !== undefined) {
+            this.speed = data.speed;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Collisions/CollisionsOverlap.js
+class CollisionsOverlap {
+    constructor() {
+        this.enable = true;
+        this.retries = 0;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.retries !== undefined) {
+            this.retries = data.retries;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/AnimationOptions.js
+
+class AnimationOptions_AnimationOptions {
+    constructor() {
+        this.count = 0;
+        this.enable = false;
+        this.speed = 1;
+        this.decay = 0;
+        this.delay = 0;
+        this.sync = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.count !== undefined) {
+            this.count = NumberUtils_setRangeValue(data.count);
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.speed !== undefined) {
+            this.speed = NumberUtils_setRangeValue(data.speed);
+        }
+        if (data.decay !== undefined) {
+            this.decay = NumberUtils_setRangeValue(data.decay);
+        }
+        if (data.delay !== undefined) {
+            this.delay = NumberUtils_setRangeValue(data.delay);
+        }
+        if (data.sync !== undefined) {
+            this.sync = data.sync;
+        }
+    }
+}
+class AnimationOptions_RangedAnimationOptions extends AnimationOptions_AnimationOptions {
+    constructor() {
+        super();
+        this.mode = "auto";
+        this.startValue = "random";
+    }
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        if (data.minimumValue !== undefined) {
+            this.minimumValue = data.minimumValue;
+        }
+        if (data.mode !== undefined) {
+            this.mode = data.mode;
+        }
+        if (data.startValue !== undefined) {
+            this.startValue = data.startValue;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Random.js
+class Random {
+    constructor() {
+        this.enable = false;
+        this.minimumValue = 0;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.minimumValue !== undefined) {
+            this.minimumValue = data.minimumValue;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/ValueWithRandom.js
+
+
+
+class ValueWithRandom {
+    constructor() {
+        this.random = new Random();
+        this.value = 0;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (typeof data.random === "boolean") {
+            this.random.enable = data.random;
+        }
+        else {
+            this.random.load(data.random);
+        }
+        if (data.value !== undefined) {
+            this.value = NumberUtils_setRangeValue(data.value, this.random.enable ? this.random.minimumValue : undefined);
+        }
+    }
+}
+class AnimationValueWithRandom extends (/* unused pure expression or super */ null && (ValueWithRandom)) {
+    constructor() {
+        super();
+        this.animation = new AnimationOptions();
+    }
+    get anim() {
+        return this.animation;
+    }
+    set anim(value) {
+        this.animation = value;
+    }
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        const animation = data.animation ?? data.anim;
+        if (animation !== undefined) {
+            this.animation.load(animation);
+        }
+    }
+}
+class RangedAnimationValueWithRandom extends (/* unused pure expression or super */ null && (AnimationValueWithRandom)) {
+    constructor() {
+        super();
+        this.animation = new RangedAnimationOptions();
+    }
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        const animation = data.animation ?? data.anim;
+        if (animation !== undefined) {
+            this.value = setRangeValue(this.value, this.animation.enable ? this.animation.minimumValue : undefined);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Bounce/ParticlesBounceFactor.js
+
+class ParticlesBounceFactor extends ValueWithRandom {
+    constructor() {
+        super();
+        this.random.minimumValue = 0.1;
+        this.value = 1;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Bounce/ParticlesBounce.js
+
+class ParticlesBounce {
+    constructor() {
+        this.horizontal = new ParticlesBounceFactor();
+        this.vertical = new ParticlesBounceFactor();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        this.horizontal.load(data.horizontal);
+        this.vertical.load(data.vertical);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Collisions/Collisions.js
+
+
+
+
+class Collisions {
+    constructor() {
+        this.absorb = new CollisionsAbsorb();
+        this.bounce = new ParticlesBounce();
+        this.enable = false;
+        this.maxSpeed = 50;
+        this.mode = "bounce";
+        this.overlap = new CollisionsOverlap();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        this.absorb.load(data.absorb);
+        this.bounce.load(data.bounce);
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.maxSpeed !== undefined) {
+            this.maxSpeed = NumberUtils_setRangeValue(data.maxSpeed);
+        }
+        if (data.mode !== undefined) {
+            this.mode = data.mode;
+        }
+        this.overlap.load(data.overlap);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Move/MoveAngle.js
+
+class MoveAngle {
+    constructor() {
+        this.offset = 0;
+        this.value = 90;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.offset !== undefined) {
+            this.offset = NumberUtils_setRangeValue(data.offset);
+        }
+        if (data.value !== undefined) {
+            this.value = NumberUtils_setRangeValue(data.value);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Move/MoveAttract.js
+
+class MoveAttract {
+    constructor() {
+        this.distance = 200;
+        this.enable = false;
+        this.rotate = {
+            x: 3000,
+            y: 3000,
+        };
+    }
+    get rotateX() {
+        return this.rotate.x;
+    }
+    set rotateX(value) {
+        this.rotate.x = value;
+    }
+    get rotateY() {
+        return this.rotate.y;
+    }
+    set rotateY(value) {
+        this.rotate.y = value;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.distance !== undefined) {
+            this.distance = NumberUtils_setRangeValue(data.distance);
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        const rotateX = data.rotate?.x ?? data.rotateX;
+        if (rotateX !== undefined) {
+            this.rotate.x = rotateX;
+        }
+        const rotateY = data.rotate?.y ?? data.rotateY;
+        if (rotateY !== undefined) {
+            this.rotate.y = rotateY;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Move/MoveCenter.js
+class MoveCenter {
+    constructor() {
+        this.x = 50;
+        this.y = 50;
+        this.mode = "percent";
+        this.radius = 0;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.x !== undefined) {
+            this.x = data.x;
+        }
+        if (data.y !== undefined) {
+            this.y = data.y;
+        }
+        if (data.mode !== undefined) {
+            this.mode = data.mode;
+        }
+        if (data.radius !== undefined) {
+            this.radius = data.radius;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Move/MoveGravity.js
+
+class MoveGravity {
+    constructor() {
+        this.acceleration = 9.81;
+        this.enable = false;
+        this.inverse = false;
+        this.maxSpeed = 50;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.acceleration !== undefined) {
+            this.acceleration = NumberUtils_setRangeValue(data.acceleration);
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.inverse !== undefined) {
+            this.inverse = data.inverse;
+        }
+        if (data.maxSpeed !== undefined) {
+            this.maxSpeed = NumberUtils_setRangeValue(data.maxSpeed);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Move/Path/MovePath.js
+
+
+class MovePath {
+    constructor() {
+        this.clamp = true;
+        this.delay = new ValueWithRandom();
+        this.enable = false;
+        this.options = {};
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.clamp !== undefined) {
+            this.clamp = data.clamp;
+        }
+        this.delay.load(data.delay);
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        this.generator = data.generator;
+        if (data.options) {
+            this.options = deepExtend(this.options, data.options);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Move/MoveTrailFill.js
+
+class MoveTrailFill {
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.color !== undefined) {
+            this.color = OptionsColor.create(this.color, data.color);
+        }
+        if (data.image !== undefined) {
+            this.image = data.image;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Move/MoveTrail.js
+
+class MoveTrail {
+    constructor() {
+        this.enable = false;
+        this.length = 10;
+        this.fill = new MoveTrailFill();
+    }
+    get fillColor() {
+        return this.fill.color;
+    }
+    set fillColor(value) {
+        this.fill.load({ color: value });
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.fill !== undefined || data.fillColor !== undefined) {
+            this.fill.load(data.fill || { color: data.fillColor });
+        }
+        if (data.length !== undefined) {
+            this.length = data.length;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Move/OutModes.js
+class OutModes {
+    constructor() {
+        this.default = "out";
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.default !== undefined) {
+            this.default = data.default;
+        }
+        this.bottom = data.bottom ?? data.default;
+        this.left = data.left ?? data.default;
+        this.right = data.right ?? data.default;
+        this.top = data.top ?? data.default;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Move/Spin.js
+
+
+class Spin {
+    constructor() {
+        this.acceleration = 0;
+        this.enable = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.acceleration !== undefined) {
+            this.acceleration = NumberUtils_setRangeValue(data.acceleration);
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.position) {
+            this.position = deepExtend({}, data.position);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Move/Move.js
+
+
+
+
+
+
+
+
+
+class Move {
+    constructor() {
+        this.angle = new MoveAngle();
+        this.attract = new MoveAttract();
+        this.center = new MoveCenter();
+        this.decay = 0;
+        this.distance = {};
+        this.direction = "none";
+        this.drift = 0;
+        this.enable = false;
+        this.gravity = new MoveGravity();
+        this.path = new MovePath();
+        this.outModes = new OutModes();
+        this.random = false;
+        this.size = false;
+        this.speed = 2;
+        this.spin = new Spin();
+        this.straight = false;
+        this.trail = new MoveTrail();
+        this.vibrate = false;
+        this.warp = false;
+    }
+    get bounce() {
+        return this.collisions;
+    }
+    set bounce(value) {
+        this.collisions = value;
+    }
+    get collisions() {
+        return false;
+    }
+    set collisions(_) {
+    }
+    get noise() {
+        return this.path;
+    }
+    set noise(value) {
+        this.path = value;
+    }
+    get outMode() {
+        return this.outModes.default;
+    }
+    set outMode(value) {
+        this.outModes.default = value;
+    }
+    get out_mode() {
+        return this.outMode;
+    }
+    set out_mode(value) {
+        this.outMode = value;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        this.angle.load(typeof data.angle === "number" ? { value: data.angle } : data.angle);
+        this.attract.load(data.attract);
+        this.center.load(data.center);
+        if (data.decay !== undefined) {
+            this.decay = NumberUtils_setRangeValue(data.decay);
+        }
+        if (data.direction !== undefined) {
+            this.direction = data.direction;
+        }
+        if (data.distance !== undefined) {
+            this.distance =
+                typeof data.distance === "number"
+                    ? {
+                        horizontal: data.distance,
+                        vertical: data.distance,
+                    }
+                    : { ...data.distance };
+        }
+        if (data.drift !== undefined) {
+            this.drift = NumberUtils_setRangeValue(data.drift);
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        this.gravity.load(data.gravity);
+        const outModes = data.outModes ?? data.outMode ?? data.out_mode;
+        if (outModes !== undefined) {
+            if (typeof outModes === "object") {
+                this.outModes.load(outModes);
+            }
+            else {
+                this.outModes.load({
+                    default: outModes,
+                });
+            }
+        }
+        this.path.load(data.path ?? data.noise);
+        if (data.random !== undefined) {
+            this.random = data.random;
+        }
+        if (data.size !== undefined) {
+            this.size = data.size;
+        }
+        if (data.speed !== undefined) {
+            this.speed = NumberUtils_setRangeValue(data.speed);
+        }
+        this.spin.load(data.spin);
+        if (data.straight !== undefined) {
+            this.straight = data.straight;
+        }
+        this.trail.load(data.trail);
+        if (data.vibrate !== undefined) {
+            this.vibrate = data.vibrate;
+        }
+        if (data.warp !== undefined) {
+            this.warp = data.warp;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Opacity/OpacityAnimation.js
+
+class OpacityAnimation extends AnimationOptions_RangedAnimationOptions {
+    constructor() {
+        super();
+        this.destroy = "none";
+        this.speed = 2;
+    }
+    get opacity_min() {
+        return this.minimumValue;
+    }
+    set opacity_min(value) {
+        this.minimumValue = value;
+    }
+    load(data) {
+        if (data?.opacity_min !== undefined && data.minimumValue === undefined) {
+            data.minimumValue = data.opacity_min;
+        }
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        if (data.destroy !== undefined) {
+            this.destroy = data.destroy;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Opacity/Opacity.js
+
+
+
+class Opacity extends ValueWithRandom {
+    constructor() {
+        super();
+        this.animation = new OpacityAnimation();
+        this.random.minimumValue = 0.1;
+        this.value = 1;
+    }
+    get anim() {
+        return this.animation;
+    }
+    set anim(value) {
+        this.animation = value;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        super.load(data);
+        const animation = data.animation ?? data.anim;
+        if (animation !== undefined) {
+            this.animation.load(animation);
+            this.value = NumberUtils_setRangeValue(this.value, this.animation.enable ? this.animation.minimumValue : undefined);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Number/ParticlesDensity.js
+class ParticlesDensity {
+    constructor() {
+        this.enable = false;
+        this.width = 1920;
+        this.height = 1080;
+    }
+    get area() {
+        return this.width;
+    }
+    set area(value) {
+        this.width = value;
+    }
+    get factor() {
+        return this.height;
+    }
+    set factor(value) {
+        this.height = value;
+    }
+    get value_area() {
+        return this.area;
+    }
+    set value_area(value) {
+        this.area = value;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        const width = data.width ?? data.area ?? data.value_area;
+        if (width !== undefined) {
+            this.width = width;
+        }
+        const height = data.height ?? data.factor;
+        if (height !== undefined) {
+            this.height = height;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Number/ParticlesNumber.js
+
+class ParticlesNumber {
+    constructor() {
+        this.density = new ParticlesDensity();
+        this.limit = 0;
+        this.value = 0;
+    }
+    get max() {
+        return this.limit;
+    }
+    set max(value) {
+        this.limit = value;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        this.density.load(data.density);
+        const limit = data.limit ?? data.max;
+        if (limit !== undefined) {
+            this.limit = limit;
+        }
+        if (data.value !== undefined) {
+            this.value = data.value;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Shadow.js
+
+class Shadow {
+    constructor() {
+        this.blur = 0;
+        this.color = new OptionsColor();
+        this.enable = false;
+        this.offset = {
+            x: 0,
+            y: 0,
+        };
+        this.color.value = "#000";
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.blur !== undefined) {
+            this.blur = data.blur;
+        }
+        this.color = OptionsColor.create(this.color, data.color);
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.offset === undefined) {
+            return;
+        }
+        if (data.offset.x !== undefined) {
+            this.offset.x = data.offset.x;
+        }
+        if (data.offset.y !== undefined) {
+            this.offset.y = data.offset.y;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Shape/Shape.js
+
+const charKey = "character", charAltKey = "char", imageKey = "image", imageAltKey = "images", polygonKey = "polygon", polygonAltKey = "star";
+class Shape {
+    constructor() {
+        this.loadShape = (item, mainKey, altKey, altOverride) => {
+            if (!item) {
+                return;
+            }
+            const isArray = item instanceof Array, emptyValue = isArray ? [] : {}, mainDifferentValues = isArray !== this.options[mainKey] instanceof Array, altDifferentValues = isArray !== this.options[altKey] instanceof Array;
+            if (mainDifferentValues) {
+                this.options[mainKey] = emptyValue;
+            }
+            if (altDifferentValues && altOverride) {
+                this.options[altKey] = emptyValue;
+            }
+            this.options[mainKey] = deepExtend(this.options[mainKey] ?? emptyValue, item);
+            if (!this.options[altKey] || altOverride) {
+                this.options[altKey] = deepExtend(this.options[altKey] ?? emptyValue, item);
+            }
+        };
+        this.close = true;
+        this.fill = true;
+        this.options = {};
+        this.type = "circle";
+    }
+    get character() {
+        return (this.options[charKey] ?? this.options[charAltKey]);
+    }
+    set character(value) {
+        this.options[charAltKey] = this.options[charKey] = value;
+    }
+    get custom() {
+        return this.options;
+    }
+    set custom(value) {
+        this.options = value;
+    }
+    get image() {
+        return (this.options[imageKey] ?? this.options[imageAltKey]);
+    }
+    set image(value) {
+        this.options[imageAltKey] = this.options[imageKey] = value;
+    }
+    get images() {
+        return this.image;
+    }
+    set images(value) {
+        this.image = value;
+    }
+    get polygon() {
+        return (this.options[polygonKey] ?? this.options[polygonAltKey]);
+    }
+    set polygon(value) {
+        this.options[polygonAltKey] = this.options[polygonKey] = value;
+    }
+    get stroke() {
+        return [];
+    }
+    set stroke(_value) {
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        const options = data.options ?? data.custom;
+        if (options !== undefined) {
+            for (const shape in options) {
+                const item = options[shape];
+                if (item) {
+                    this.options[shape] = deepExtend(this.options[shape] ?? {}, item);
+                }
+            }
+        }
+        this.loadShape(data.character, charKey, charAltKey, true);
+        this.loadShape(data.polygon, polygonKey, polygonAltKey, false);
+        this.loadShape(data.image ?? data.images, imageKey, imageAltKey, true);
+        if (data.close !== undefined) {
+            this.close = data.close;
+        }
+        if (data.fill !== undefined) {
+            this.fill = data.fill;
+        }
+        if (data.type !== undefined) {
+            this.type = data.type;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Size/SizeAnimation.js
+
+class SizeAnimation extends AnimationOptions_RangedAnimationOptions {
+    constructor() {
+        super();
+        this.destroy = "none";
+        this.speed = 5;
+    }
+    get size_min() {
+        return this.minimumValue;
+    }
+    set size_min(value) {
+        this.minimumValue = value;
+    }
+    load(data) {
+        if (data?.size_min !== undefined && data.minimumValue === undefined) {
+            data.minimumValue = data.size_min;
+        }
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        if (data.destroy !== undefined) {
+            this.destroy = data.destroy;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Size/Size.js
+
+
+
+class Size extends ValueWithRandom {
+    constructor() {
+        super();
+        this.animation = new SizeAnimation();
+        this.random.minimumValue = 1;
+        this.value = 3;
+    }
+    get anim() {
+        return this.animation;
+    }
+    set anim(value) {
+        this.animation = value;
+    }
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        const animation = data.animation ?? data.anim;
+        if (animation !== undefined) {
+            this.animation.load(animation);
+            this.value = NumberUtils_setRangeValue(this.value, this.animation.enable ? this.animation.minimumValue : undefined);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/Stroke.js
+
+
+class Stroke {
+    constructor() {
+        this.width = 0;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.color !== undefined) {
+            this.color = AnimatableColor.create(this.color, data.color);
+        }
+        if (data.width !== undefined) {
+            this.width = NumberUtils_setRangeValue(data.width);
+        }
+        if (data.opacity !== undefined) {
+            this.opacity = NumberUtils_setRangeValue(data.opacity);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/ZIndex/ZIndex.js
+
+class ZIndex extends ValueWithRandom {
+    constructor() {
+        super();
+        this.opacityRate = 1;
+        this.sizeRate = 1;
+        this.velocityRate = 1;
+    }
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        if (data.opacityRate !== undefined) {
+            this.opacityRate = data.opacityRate;
+        }
+        if (data.sizeRate !== undefined) {
+            this.sizeRate = data.sizeRate;
+        }
+        if (data.velocityRate !== undefined) {
+            this.velocityRate = data.velocityRate;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Particles/ParticlesOptions.js
+
+
+
+
+
+
+
+
+
+
+
+
+class ParticlesOptions {
+    constructor(engine, container) {
+        this._engine = engine;
+        this._container = container;
+        this.bounce = new ParticlesBounce();
+        this.collisions = new Collisions();
+        this.color = new AnimatableColor();
+        this.color.value = "#fff";
+        this.groups = {};
+        this.move = new Move();
+        this.number = new ParticlesNumber();
+        this.opacity = new Opacity();
+        this.reduceDuplicates = false;
+        this.shadow = new Shadow();
+        this.shape = new Shape();
+        this.size = new Size();
+        this.stroke = new Stroke();
+        this.zIndex = new ZIndex();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        this.bounce.load(data.bounce);
+        this.color.load(AnimatableColor.create(this.color, data.color));
+        if (data.groups !== undefined) {
+            for (const group in data.groups) {
+                const item = data.groups[group];
+                if (item !== undefined) {
+                    this.groups[group] = deepExtend(this.groups[group] ?? {}, item);
+                }
+            }
+        }
+        this.move.load(data.move);
+        this.number.load(data.number);
+        this.opacity.load(data.opacity);
+        if (data.reduceDuplicates !== undefined) {
+            this.reduceDuplicates = data.reduceDuplicates;
+        }
+        this.shape.load(data.shape);
+        this.size.load(data.size);
+        this.shadow.load(data.shadow);
+        this.zIndex.load(data.zIndex);
+        const collisions = data.move?.collisions ?? data.move?.bounce;
+        if (collisions !== undefined) {
+            this.collisions.enable = collisions;
+        }
+        this.collisions.load(data.collisions);
+        if (data.interactivity !== undefined) {
+            this.interactivity = deepExtend({}, data.interactivity);
+        }
+        const strokeToLoad = data.stroke ?? data.shape?.stroke;
+        if (strokeToLoad) {
+            this.stroke = executeOnSingleOrMultiple(strokeToLoad, (t) => {
+                const tmp = new Stroke();
+                tmp.load(t);
+                return tmp;
+            });
+        }
+        if (this._container) {
+            const updaters = this._engine.plugins.updaters.get(this._container);
+            if (updaters) {
+                for (const updater of updaters) {
+                    if (updater.loadOptions) {
+                        updater.loadOptions(this, data);
+                    }
+                }
+            }
+            const interactors = this._engine.plugins.interactors.get(this._container);
+            if (interactors) {
+                for (const interactor of interactors) {
+                    if (interactor.loadParticlesOptions) {
+                        interactor.loadParticlesOptions(this, data);
+                    }
+                }
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Utils/OptionsUtils.js
+
+function loadOptions(options, ...sourceOptionsArr) {
+    for (const sourceOptions of sourceOptionsArr) {
+        options.load(sourceOptions);
+    }
+}
+function loadParticlesOptions(engine, container, ...sourceOptionsArr) {
+    const options = new ParticlesOptions(engine, container);
+    loadOptions(options, ...sourceOptionsArr);
+    return options;
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Options/Classes/Options.js
+
+
+
+
+
+
+
+
+
+
+class Options {
+    constructor(engine, container) {
+        this._findDefaultTheme = (mode) => {
+            return (this.themes.find((theme) => theme.default.value && theme.default.mode === mode) ??
+                this.themes.find((theme) => theme.default.value && theme.default.mode === "any"));
+        };
+        this._importPreset = (preset) => {
+            this.load(this._engine.plugins.getPreset(preset));
+        };
+        this._engine = engine;
+        this._container = container;
+        this.autoPlay = true;
+        this.background = new Background();
+        this.backgroundMask = new BackgroundMask();
+        this.defaultThemes = {};
+        this.delay = 0;
+        this.fullScreen = new FullScreen();
+        this.detectRetina = true;
+        this.duration = 0;
+        this.fpsLimit = 120;
+        this.interactivity = new Interactivity(engine, container);
+        this.manualParticles = [];
+        this.particles = loadParticlesOptions(this._engine, this._container);
+        this.pauseOnBlur = true;
+        this.pauseOnOutsideViewport = true;
+        this.responsive = [];
+        this.smooth = false;
+        this.style = {};
+        this.themes = [];
+        this.zLayers = 100;
+    }
+    get backgroundMode() {
+        return this.fullScreen;
+    }
+    set backgroundMode(value) {
+        this.fullScreen.load(value);
+    }
+    get fps_limit() {
+        return this.fpsLimit;
+    }
+    set fps_limit(value) {
+        this.fpsLimit = value;
+    }
+    get retina_detect() {
+        return this.detectRetina;
+    }
+    set retina_detect(value) {
+        this.detectRetina = value;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.preset !== undefined) {
+            executeOnSingleOrMultiple(data.preset, (preset) => this._importPreset(preset));
+        }
+        if (data.autoPlay !== undefined) {
+            this.autoPlay = data.autoPlay;
+        }
+        if (data.delay !== undefined) {
+            this.delay = NumberUtils_setRangeValue(data.delay);
+        }
+        const detectRetina = data.detectRetina ?? data.retina_detect;
+        if (detectRetina !== undefined) {
+            this.detectRetina = detectRetina;
+        }
+        if (data.duration !== undefined) {
+            this.duration = NumberUtils_setRangeValue(data.duration);
+        }
+        const fpsLimit = data.fpsLimit ?? data.fps_limit;
+        if (fpsLimit !== undefined) {
+            this.fpsLimit = fpsLimit;
+        }
+        if (data.pauseOnBlur !== undefined) {
+            this.pauseOnBlur = data.pauseOnBlur;
+        }
+        if (data.pauseOnOutsideViewport !== undefined) {
+            this.pauseOnOutsideViewport = data.pauseOnOutsideViewport;
+        }
+        if (data.zLayers !== undefined) {
+            this.zLayers = data.zLayers;
+        }
+        this.background.load(data.background);
+        const fullScreen = data.fullScreen ?? data.backgroundMode;
+        if (typeof fullScreen === "boolean") {
+            this.fullScreen.enable = fullScreen;
+        }
+        else {
+            this.fullScreen.load(fullScreen);
+        }
+        this.backgroundMask.load(data.backgroundMask);
+        this.interactivity.load(data.interactivity);
+        if (data.manualParticles) {
+            this.manualParticles = data.manualParticles.map((t) => {
+                const tmp = new ManualParticle();
+                tmp.load(t);
+                return tmp;
+            });
+        }
+        this.particles.load(data.particles);
+        this.style = deepExtend(this.style, data.style);
+        this._engine.plugins.loadOptions(this, data);
+        if (data.smooth !== undefined) {
+            this.smooth = data.smooth;
+        }
+        const interactors = this._engine.plugins.interactors.get(this._container);
+        if (interactors) {
+            for (const interactor of interactors) {
+                if (interactor.loadOptions) {
+                    interactor.loadOptions(this, data);
+                }
+            }
+        }
+        if (data.responsive !== undefined) {
+            for (const responsive of data.responsive) {
+                const optResponsive = new Responsive();
+                optResponsive.load(responsive);
+                this.responsive.push(optResponsive);
+            }
+        }
+        this.responsive.sort((a, b) => a.maxWidth - b.maxWidth);
+        if (data.themes !== undefined) {
+            for (const theme of data.themes) {
+                const existingTheme = this.themes.find((t) => t.name === theme.name);
+                if (!existingTheme) {
+                    const optTheme = new Theme();
+                    optTheme.load(theme);
+                    this.themes.push(optTheme);
+                }
+                else {
+                    existingTheme.load(theme);
+                }
+            }
+        }
+        this.defaultThemes.dark = this._findDefaultTheme("dark")?.name;
+        this.defaultThemes.light = this._findDefaultTheme("light")?.name;
+    }
+    setResponsive(width, pxRatio, defaultOptions) {
+        this.load(defaultOptions);
+        const responsiveOptions = this.responsive.find((t) => t.mode === "screen" && screen ? t.maxWidth > screen.availWidth : t.maxWidth * pxRatio > width);
+        this.load(responsiveOptions?.options);
+        return responsiveOptions?.maxWidth;
+    }
+    setTheme(name) {
+        if (name) {
+            const chosenTheme = this.themes.find((theme) => theme.name === name);
+            if (chosenTheme) {
+                this.load(chosenTheme.options);
+            }
+        }
+        else {
+            const mediaMatch = safeMatchMedia("(prefers-color-scheme: dark)"), clientDarkMode = mediaMatch && mediaMatch.matches, defaultTheme = this._findDefaultTheme(clientDarkMode ? "dark" : "light");
+            if (defaultTheme) {
+                this.load(defaultTheme.options);
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/InteractionManager.js
+class InteractionManager {
+    constructor(engine, container) {
+        this.container = container;
+        this._engine = engine;
+        this._interactors = this._engine.plugins.getInteractors(this.container, true);
+        this._externalInteractors = [];
+        this._particleInteractors = [];
+    }
+    async externalInteract(delta) {
+        for (const interactor of this._externalInteractors) {
+            if (interactor.isEnabled()) {
+                await interactor.interact(delta);
+            }
+        }
+    }
+    handleClickMode(mode) {
+        for (const interactor of this._externalInteractors) {
+            if (interactor.handleClickMode) {
+                interactor.handleClickMode(mode);
+            }
+        }
+    }
+    init() {
+        this._externalInteractors = [];
+        this._particleInteractors = [];
+        for (const interactor of this._interactors) {
+            switch (interactor.type) {
+                case "external":
+                    this._externalInteractors.push(interactor);
+                    break;
+                case "particles":
+                    this._particleInteractors.push(interactor);
+                    break;
+            }
+            interactor.init();
+        }
+    }
+    async particlesInteract(particle, delta) {
+        for (const interactor of this._externalInteractors) {
+            interactor.clear(particle, delta);
+        }
+        for (const interactor of this._particleInteractors) {
+            if (interactor.isEnabled(particle)) {
+                await interactor.interact(particle, delta);
+            }
+        }
+    }
+    async reset(particle) {
+        for (const interactor of this._externalInteractors) {
+            if (interactor.isEnabled()) {
+                interactor.reset(particle);
+            }
+        }
+        for (const interactor of this._particleInteractors) {
+            if (interactor.isEnabled(particle)) {
+                interactor.reset(particle);
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Particle.js
+
+
+
+
+
+
+
+
+
+const fixOutMode = (data) => {
+    if (!isInArray(data.outMode, data.checkModes)) {
+        return;
+    }
+    const diameter = data.radius * 2;
+    if (data.coord > data.maxCoord - diameter) {
+        data.setCb(-data.radius);
+    }
+    else if (data.coord < diameter) {
+        data.setCb(data.radius);
+    }
+};
+class Particle {
+    constructor(engine, id, container, position, overrideOptions, group) {
+        this.container = container;
+        this._calcPosition = (container, position, zIndex, tryCount = 0) => {
+            for (const [, plugin] of container.plugins) {
+                const pluginPos = plugin.particlePosition !== undefined ? plugin.particlePosition(position, this) : undefined;
+                if (pluginPos) {
+                    return Vector3d.create(pluginPos.x, pluginPos.y, zIndex);
+                }
+            }
+            const canvasSize = container.canvas.size, exactPosition = calcExactPositionOrRandomFromSize({
+                size: canvasSize,
+                position: position,
+            }), pos = Vector3d.create(exactPosition.x, exactPosition.y, zIndex), radius = this.getRadius(), outModes = this.options.move.outModes, fixHorizontal = (outMode) => {
+                fixOutMode({
+                    outMode,
+                    checkModes: ["bounce", "bounce-horizontal"],
+                    coord: pos.x,
+                    maxCoord: container.canvas.size.width,
+                    setCb: (value) => (pos.x += value),
+                    radius,
+                });
+            }, fixVertical = (outMode) => {
+                fixOutMode({
+                    outMode,
+                    checkModes: ["bounce", "bounce-vertical"],
+                    coord: pos.y,
+                    maxCoord: container.canvas.size.height,
+                    setCb: (value) => (pos.y += value),
+                    radius,
+                });
+            };
+            fixHorizontal(outModes.left ?? outModes.default);
+            fixHorizontal(outModes.right ?? outModes.default);
+            fixVertical(outModes.top ?? outModes.default);
+            fixVertical(outModes.bottom ?? outModes.default);
+            if (this._checkOverlap(pos, tryCount)) {
+                return this._calcPosition(container, undefined, zIndex, tryCount + 1);
+            }
+            return pos;
+        };
+        this._calculateVelocity = () => {
+            const baseVelocity = getParticleBaseVelocity(this.direction), res = baseVelocity.copy(), moveOptions = this.options.move;
+            if (moveOptions.direction === "inside" || moveOptions.direction === "outside") {
+                return res;
+            }
+            const rad = (Math.PI / 180) * getRangeValue(moveOptions.angle.value), radOffset = (Math.PI / 180) * getRangeValue(moveOptions.angle.offset), range = {
+                left: radOffset - rad / 2,
+                right: radOffset + rad / 2,
+            };
+            if (!moveOptions.straight) {
+                res.angle += randomInRange(NumberUtils_setRangeValue(range.left, range.right));
+            }
+            if (moveOptions.random && typeof moveOptions.speed === "number") {
+                res.length *= getRandom();
+            }
+            return res;
+        };
+        this._checkOverlap = (pos, tryCount = 0) => {
+            const collisionsOptions = this.options.collisions, radius = this.getRadius();
+            if (!collisionsOptions.enable) {
+                return false;
+            }
+            const overlapOptions = collisionsOptions.overlap;
+            if (overlapOptions.enable) {
+                return false;
+            }
+            const retries = overlapOptions.retries;
+            if (retries >= 0 && tryCount > retries) {
+                throw new Error(`${errorPrefix} particle is overlapping and can't be placed`);
+            }
+            return !!this.container.particles.find((particle) => getDistance(pos, particle.position) < radius + particle.getRadius());
+        };
+        this._getRollColor = (color) => {
+            if (!color || !this.roll || (!this.backColor && !this.roll.alter)) {
+                return color;
+            }
+            const backFactor = this.roll.horizontal && this.roll.vertical ? 2 : 1, backSum = this.roll.horizontal ? Math.PI / 2 : 0, rolled = Math.floor(((this.roll.angle ?? 0) + backSum) / (Math.PI / backFactor)) % 2;
+            if (!rolled) {
+                return color;
+            }
+            if (this.backColor) {
+                return this.backColor;
+            }
+            if (this.roll.alter) {
+                return alterHsl(color, this.roll.alter.type, this.roll.alter.value);
+            }
+            return color;
+        };
+        this._loadShapeData = (shapeOptions, reduceDuplicates) => {
+            const shapeData = shapeOptions.options[this.shape];
+            if (shapeData) {
+                return deepExtend({
+                    close: shapeOptions.close,
+                    fill: shapeOptions.fill,
+                }, itemFromSingleOrMultiple(shapeData, this.id, reduceDuplicates));
+            }
+        };
+        this._engine = engine;
+        this.init(id, position, overrideOptions, group);
+    }
+    destroy(override) {
+        if (this.unbreakable || this.destroyed) {
+            return;
+        }
+        this.destroyed = true;
+        this.bubble.inRange = false;
+        this.slow.inRange = false;
+        const container = this.container, pathGenerator = this.pathGenerator;
+        for (const [, plugin] of container.plugins) {
+            if (plugin.particleDestroyed) {
+                plugin.particleDestroyed(this, override);
+            }
+        }
+        for (const updater of container.particles.updaters) {
+            if (updater.particleDestroyed) {
+                updater.particleDestroyed(this, override);
+            }
+        }
+        if (pathGenerator) {
+            pathGenerator.reset(this);
+        }
+    }
+    draw(delta) {
+        const container = this.container;
+        for (const [, plugin] of container.plugins) {
+            container.canvas.drawParticlePlugin(plugin, this, delta);
+        }
+        container.canvas.drawParticle(this, delta);
+    }
+    getFillColor() {
+        return this._getRollColor(this.bubble.color ?? getHslFromAnimation(this.color));
+    }
+    getMass() {
+        return (this.getRadius() ** 2 * Math.PI) / 2;
+    }
+    getPosition() {
+        return {
+            x: this.position.x + this.offset.x,
+            y: this.position.y + this.offset.y,
+            z: this.position.z,
+        };
+    }
+    getRadius() {
+        return this.bubble.radius ?? this.size.value;
+    }
+    getStrokeColor() {
+        return this._getRollColor(this.bubble.color ?? getHslFromAnimation(this.strokeColor));
+    }
+    init(id, position, overrideOptions, group) {
+        const container = this.container, engine = this._engine;
+        this.id = id;
+        this.group = group;
+        this.fill = true;
+        this.pathRotation = false;
+        this.close = true;
+        this.lastPathTime = 0;
+        this.destroyed = false;
+        this.unbreakable = false;
+        this.rotation = 0;
+        this.misplaced = false;
+        this.retina = {
+            maxDistance: {},
+        };
+        this.outType = "normal";
+        this.ignoresResizeRatio = true;
+        const pxRatio = container.retina.pixelRatio, mainOptions = container.actualOptions, particlesOptions = loadParticlesOptions(this._engine, container, mainOptions.particles), shapeType = particlesOptions.shape.type, { reduceDuplicates } = particlesOptions;
+        this.shape = itemFromSingleOrMultiple(shapeType, this.id, reduceDuplicates);
+        const shapeOptions = particlesOptions.shape;
+        if (overrideOptions && overrideOptions.shape && overrideOptions.shape.type) {
+            const overrideShapeType = overrideOptions.shape.type, shape = itemFromSingleOrMultiple(overrideShapeType, this.id, reduceDuplicates);
+            if (shape) {
+                this.shape = shape;
+                shapeOptions.load(overrideOptions.shape);
+            }
+        }
+        this.shapeData = this._loadShapeData(shapeOptions, reduceDuplicates);
+        particlesOptions.load(overrideOptions);
+        const shapeData = this.shapeData;
+        if (shapeData) {
+            particlesOptions.load(shapeData.particles);
+        }
+        const interactivity = new Interactivity(engine, container);
+        interactivity.load(container.actualOptions.interactivity);
+        interactivity.load(particlesOptions.interactivity);
+        this.interactivity = interactivity;
+        this.fill = shapeData?.fill ?? particlesOptions.shape.fill;
+        this.close = shapeData?.close ?? particlesOptions.shape.close;
+        this.options = particlesOptions;
+        const pathOptions = this.options.move.path;
+        this.pathDelay = getValue(pathOptions.delay) * 1000;
+        if (pathOptions.generator) {
+            this.pathGenerator = this._engine.plugins.getPathGenerator(pathOptions.generator);
+            if (this.pathGenerator && container.addPath(pathOptions.generator, this.pathGenerator)) {
+                this.pathGenerator.init(container);
+            }
+        }
+        const zIndexValue = getRangeValue(this.options.zIndex.value);
+        container.retina.initParticle(this);
+        this.size = initParticleNumericAnimationValue(this.options.size, pxRatio);
+        this.bubble = {
+            inRange: false,
+        };
+        this.slow = {
+            inRange: false,
+            factor: 1,
+        };
+        this.position = this._calcPosition(container, position, clamp(zIndexValue, 0, container.zLayers));
+        this.initialPosition = this.position.copy();
+        const canvasSize = container.canvas.size, moveCenter = { ...this.options.move.center }, isCenterPercent = moveCenter.mode === "percent";
+        this.moveCenter = {
+            x: moveCenter.x * (isCenterPercent ? canvasSize.width / 100 : 1),
+            y: moveCenter.y * (isCenterPercent ? canvasSize.height / 100 : 1),
+            radius: this.options.move.center.radius ?? 0,
+            mode: this.options.move.center.mode ?? "percent",
+        };
+        this.direction = getParticleDirectionAngle(this.options.move.direction, this.position, this.moveCenter);
+        switch (this.options.move.direction) {
+            case "inside":
+                this.outType = "inside";
+                break;
+            case "outside":
+                this.outType = "outside";
+                break;
+        }
+        this.initialVelocity = this._calculateVelocity();
+        this.velocity = this.initialVelocity.copy();
+        this.moveDecay = 1 - getRangeValue(this.options.move.decay);
+        this.offset = Vector.origin;
+        const particles = container.particles;
+        particles.needsSort = particles.needsSort || particles.lastZIndex < this.position.z;
+        particles.lastZIndex = this.position.z;
+        this.zIndexFactor = this.position.z / container.zLayers;
+        this.sides = 24;
+        let drawer = container.drawers.get(this.shape);
+        if (!drawer) {
+            drawer = this._engine.plugins.getShapeDrawer(this.shape);
+            if (drawer) {
+                container.drawers.set(this.shape, drawer);
+            }
+        }
+        if (drawer && drawer.loadShape) {
+            drawer.loadShape(this);
+        }
+        const sideCountFunc = drawer?.getSidesCount;
+        if (sideCountFunc) {
+            this.sides = sideCountFunc(this);
+        }
+        this.spawning = false;
+        this.shadowColor = rangeColorToRgb(this.options.shadow.color);
+        for (const updater of container.particles.updaters) {
+            updater.init(this);
+        }
+        for (const mover of container.particles.movers) {
+            mover.init && mover.init(this);
+        }
+        if (drawer && drawer.particleInit) {
+            drawer.particleInit(container, this);
+        }
+        for (const [, plugin] of container.plugins) {
+            plugin.particleCreated && plugin.particleCreated(this);
+        }
+    }
+    isInsideCanvas() {
+        const radius = this.getRadius(), canvasSize = this.container.canvas.size, position = this.position;
+        return (position.x >= -radius &&
+            position.y >= -radius &&
+            position.y <= canvasSize.height + radius &&
+            position.x <= canvasSize.width + radius);
+    }
+    isVisible() {
+        return !this.destroyed && !this.spawning && this.isInsideCanvas();
+    }
+    reset() {
+        for (const updater of this.container.particles.updaters) {
+            updater.reset && updater.reset(this);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/Point.js
+class Point {
+    constructor(position, particle) {
+        this.position = position;
+        this.particle = particle;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/Range.js
+class Range {
+    constructor(x, y) {
+        this.position = {
+            x: x,
+            y: y,
+        };
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/Circle.js
+
+
+class Circle extends Range {
+    constructor(x, y, radius) {
+        super(x, y);
+        this.radius = radius;
+    }
+    contains(point) {
+        return getDistance(point, this.position) <= this.radius;
+    }
+    intersects(range) {
+        const rect = range, circle = range, pos1 = this.position, pos2 = range.position, distPos = { x: Math.abs(pos2.x - pos1.x), y: Math.abs(pos2.y - pos1.y) }, r = this.radius;
+        if (circle.radius !== undefined) {
+            const rSum = r + circle.radius, dist = Math.sqrt(distPos.x ** 2 + distPos.y ** 2);
+            return rSum > dist;
+        }
+        else if (rect.size !== undefined) {
+            const w = rect.size.width, h = rect.size.height, edges = Math.pow(distPos.x - w, 2) + Math.pow(distPos.y - h, 2);
+            return edges <= r ** 2 || (distPos.x <= r + w && distPos.y <= r + h) || distPos.x <= w || distPos.y <= h;
+        }
+        return false;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/Rectangle.js
+
+
+class Rectangle extends Range {
+    constructor(x, y, width, height) {
+        super(x, y);
+        this.size = {
+            height: height,
+            width: width,
+        };
+    }
+    contains(point) {
+        const w = this.size.width, h = this.size.height, pos = this.position;
+        return point.x >= pos.x && point.x <= pos.x + w && point.y >= pos.y && point.y <= pos.y + h;
+    }
+    intersects(range) {
+        if (range instanceof Circle) {
+            range.intersects(this);
+        }
+        const w = this.size.width, h = this.size.height, pos1 = this.position, pos2 = range.position, size2 = range instanceof Rectangle ? range.size : { width: 0, height: 0 }, w2 = size2.width, h2 = size2.height;
+        return pos2.x < pos1.x + w && pos2.x + w2 > pos1.x && pos2.y < pos1.y + h && pos2.y + h2 > pos1.y;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/QuadTree.js
+
+
+
+class QuadTree {
+    constructor(rectangle, capacity) {
+        this.rectangle = rectangle;
+        this.capacity = capacity;
+        this._subdivide = () => {
+            const { x, y } = this.rectangle.position, { width, height } = this.rectangle.size, { capacity } = this;
+            for (let i = 0; i < 4; i++) {
+                this._subs.push(new QuadTree(new Rectangle(x + (width / 2) * (i % 2), y + (height / 2) * (Math.round(i / 2) - (i % 2)), width / 2, height / 2), capacity));
+            }
+            this._divided = true;
+        };
+        this._points = [];
+        this._divided = false;
+        this._subs = [];
+    }
+    insert(point) {
+        if (!this.rectangle.contains(point.position)) {
+            return false;
+        }
+        if (this._points.length < this.capacity) {
+            this._points.push(point);
+            return true;
+        }
+        if (!this._divided) {
+            this._subdivide();
+        }
+        return this._subs.some((sub) => sub.insert(point));
+    }
+    query(range, check, found) {
+        const res = found || [];
+        if (!range.intersects(this.rectangle)) {
+            return [];
+        }
+        for (const p of this._points) {
+            if (!range.contains(p.position) &&
+                getDistance(range.position, p.position) > p.particle.getRadius() &&
+                (!check || check(p.particle))) {
+                continue;
+            }
+            res.push(p.particle);
+        }
+        if (this._divided) {
+            for (const sub of this._subs) {
+                sub.query(range, check, res);
+            }
+        }
+        return res;
+    }
+    queryCircle(position, radius, check) {
+        return this.query(new Circle(position.x, position.y, radius), check);
+    }
+    queryRectangle(position, size, check) {
+        return this.query(new Rectangle(position.x, position.y, size.width, size.height), check);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Particles.js
+
+
+
+
+
+
+
+const qTreeCapacity = 4;
+const qTreeRectangle = (canvasSize) => {
+    return new Rectangle(-canvasSize.width / 4, -canvasSize.height / 4, (canvasSize.width * 3) / 2, (canvasSize.height * 3) / 2);
+};
+class Particles {
+    constructor(engine, container) {
+        this._applyDensity = (options, manualCount, group) => {
+            if (!options.number.density?.enable) {
+                return;
+            }
+            const numberOptions = options.number, densityFactor = this._initDensityFactor(numberOptions.density), optParticlesNumber = numberOptions.value, optParticlesLimit = numberOptions.limit > 0 ? numberOptions.limit : optParticlesNumber, particlesNumber = Math.min(optParticlesNumber, optParticlesLimit) * densityFactor + manualCount, particlesCount = Math.min(this.count, this._array.filter((t) => t.group === group).length);
+            this.limit = numberOptions.limit * densityFactor;
+            if (particlesCount < particlesNumber) {
+                this.push(Math.abs(particlesNumber - particlesCount), undefined, options, group);
+            }
+            else if (particlesCount > particlesNumber) {
+                this.removeQuantity(particlesCount - particlesNumber, group);
+            }
+        };
+        this._initDensityFactor = (densityOptions) => {
+            const container = this._container;
+            if (!container.canvas.element || !densityOptions.enable) {
+                return 1;
+            }
+            const canvas = container.canvas.element, pxRatio = container.retina.pixelRatio;
+            return (canvas.width * canvas.height) / (densityOptions.factor * pxRatio ** 2 * densityOptions.area);
+        };
+        this._pushParticle = (position, overrideOptions, group, initializer) => {
+            try {
+                let particle = this.pool.pop();
+                if (particle) {
+                    particle.init(this._nextId, position, overrideOptions, group);
+                }
+                else {
+                    particle = new Particle(this._engine, this._nextId, this._container, position, overrideOptions, group);
+                }
+                let canAdd = true;
+                if (initializer) {
+                    canAdd = initializer(particle);
+                }
+                if (!canAdd) {
+                    return;
+                }
+                this._array.push(particle);
+                this._zArray.push(particle);
+                this._nextId++;
+                this._engine.dispatchEvent("particleAdded", {
+                    container: this._container,
+                    data: {
+                        particle,
+                    },
+                });
+                return particle;
+            }
+            catch (e) {
+                console.warn(`${errorPrefix} adding particle: ${e}`);
+                return;
+            }
+        };
+        this._engine = engine;
+        this._container = container;
+        this._nextId = 0;
+        this._array = [];
+        this._zArray = [];
+        this.pool = [];
+        this.limit = 0;
+        this.needsSort = false;
+        this.lastZIndex = 0;
+        this._interactionManager = new InteractionManager(this._engine, this._container);
+        const canvasSize = this._container.canvas.size;
+        this.quadTree = new QuadTree(qTreeRectangle(canvasSize), qTreeCapacity);
+        this.movers = this._engine.plugins.getMovers(this._container, true);
+        this.updaters = this._engine.plugins.getUpdaters(this._container, true);
+    }
+    get count() {
+        return this._array.length;
+    }
+    addManualParticles() {
+        const container = this._container, options = container.actualOptions;
+        for (const particle of options.manualParticles) {
+            this.addParticle(particle.position
+                ? particle.position.mode === "precise"
+                    ? particle.position
+                    : calcPositionFromSize({
+                        size: container.canvas.size,
+                        position: particle.position,
+                    })
+                : undefined, particle.options);
+        }
+    }
+    addParticle(position, overrideOptions, group, initializer) {
+        const container = this._container, options = container.actualOptions, limit = options.particles.number.limit;
+        if (limit > 0) {
+            const countToRemove = this.count + 1 - limit;
+            if (countToRemove > 0) {
+                this.removeQuantity(countToRemove);
+            }
+        }
+        return this._pushParticle(position, overrideOptions, group, initializer);
+    }
+    clear() {
+        this._array = [];
+        this._zArray = [];
+    }
+    destroy() {
+        this._array = [];
+        this._zArray = [];
+        this.movers = [];
+        this.updaters = [];
+    }
+    async draw(delta) {
+        const container = this._container, canvasSize = this._container.canvas.size;
+        this.quadTree = new QuadTree(qTreeRectangle(canvasSize), qTreeCapacity);
+        container.canvas.clear();
+        await this.update(delta);
+        if (this.needsSort) {
+            this._zArray.sort((a, b) => b.position.z - a.position.z || a.id - b.id);
+            this.lastZIndex = this._zArray[this._zArray.length - 1].position.z;
+            this.needsSort = false;
+        }
+        for (const [, plugin] of container.plugins) {
+            container.canvas.drawPlugin(plugin, delta);
+        }
+        for (const p of this._zArray) {
+            p.draw(delta);
+        }
+    }
+    filter(condition) {
+        return this._array.filter(condition);
+    }
+    find(condition) {
+        return this._array.find(condition);
+    }
+    handleClickMode(mode) {
+        this._interactionManager.handleClickMode(mode);
+    }
+    init() {
+        const container = this._container, options = container.actualOptions;
+        this.lastZIndex = 0;
+        this.needsSort = false;
+        let handled = false;
+        this.updaters = this._engine.plugins.getUpdaters(container, true);
+        this._interactionManager.init();
+        for (const [, plugin] of container.plugins) {
+            if (plugin.particlesInitialization !== undefined) {
+                handled = plugin.particlesInitialization();
+            }
+            if (handled) {
+                break;
+            }
+        }
+        this._interactionManager.init();
+        for (const [, pathGenerator] of container.pathGenerators) {
+            pathGenerator.init(container);
+        }
+        this.addManualParticles();
+        if (!handled) {
+            for (const group in options.particles.groups) {
+                const groupOptions = options.particles.groups[group];
+                for (let i = this.count, j = 0; j < groupOptions.number?.value && i < options.particles.number.value; i++, j++) {
+                    this.addParticle(undefined, groupOptions, group);
+                }
+            }
+            for (let i = this.count; i < options.particles.number.value; i++) {
+                this.addParticle();
+            }
+        }
+    }
+    push(nb, mouse, overrideOptions, group) {
+        this.pushing = true;
+        for (let i = 0; i < nb; i++) {
+            this.addParticle(mouse?.position, overrideOptions, group);
+        }
+        this.pushing = false;
+    }
+    async redraw() {
+        this.clear();
+        this.init();
+        await this.draw({ value: 0, factor: 0 });
+    }
+    remove(particle, group, override) {
+        this.removeAt(this._array.indexOf(particle), undefined, group, override);
+    }
+    removeAt(index, quantity = 1, group, override) {
+        if (index < 0 || index > this.count) {
+            return;
+        }
+        let deleted = 0;
+        for (let i = index; deleted < quantity && i < this.count; i++) {
+            const particle = this._array[i];
+            if (!particle || particle.group !== group) {
+                continue;
+            }
+            particle.destroy(override);
+            this._array.splice(i--, 1);
+            const zIdx = this._zArray.indexOf(particle);
+            this._zArray.splice(zIdx, 1);
+            this.pool.push(particle);
+            deleted++;
+            this._engine.dispatchEvent("particleRemoved", {
+                container: this._container,
+                data: {
+                    particle,
+                },
+            });
+        }
+    }
+    removeQuantity(quantity, group) {
+        this.removeAt(0, quantity, group);
+    }
+    setDensity() {
+        const options = this._container.actualOptions, groups = options.particles.groups;
+        for (const group in groups) {
+            this._applyDensity(groups[group], 0, group);
+        }
+        this._applyDensity(options.particles, options.manualParticles.length);
+    }
+    async update(delta) {
+        const container = this._container, particlesToDelete = new Set();
+        for (const [, pathGenerator] of container.pathGenerators) {
+            pathGenerator.update();
+        }
+        for (const [, plugin] of container.plugins) {
+            plugin.update && plugin.update(delta);
+        }
+        for (const particle of this._array) {
+            const resizeFactor = container.canvas.resizeFactor;
+            if (resizeFactor && !particle.ignoresResizeRatio) {
+                particle.position.x *= resizeFactor.width;
+                particle.position.y *= resizeFactor.height;
+                particle.initialPosition.x *= resizeFactor.width;
+                particle.initialPosition.y *= resizeFactor.height;
+            }
+            particle.ignoresResizeRatio = false;
+            await this._interactionManager.reset(particle);
+            for (const [, plugin] of this._container.plugins) {
+                if (particle.destroyed) {
+                    break;
+                }
+                if (plugin.particleUpdate) {
+                    plugin.particleUpdate(particle, delta);
+                }
+            }
+            for (const mover of this.movers) {
+                if (mover.isEnabled(particle)) {
+                    mover.move(particle, delta);
+                }
+            }
+            if (particle.destroyed) {
+                particlesToDelete.add(particle);
+                continue;
+            }
+            this.quadTree.insert(new Point(particle.getPosition(), particle));
+        }
+        this._array = this._array.filter((t) => !particlesToDelete.has(t));
+        await this._interactionManager.externalInteract(delta);
+        for (const particle of this._array) {
+            for (const updater of this.updaters) {
+                updater.update(particle, delta);
+            }
+            if (!particle.destroyed && !particle.spawning) {
+                await this._interactionManager.particlesInteract(particle, delta);
+            }
+        }
+        delete container.canvas.resizeFactor;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Retina.js
+
+
+class Retina {
+    constructor(container) {
+        this.container = container;
+    }
+    init() {
+        const container = this.container, options = container.actualOptions;
+        this.pixelRatio = !options.detectRetina || isSsr() ? 1 : window.devicePixelRatio;
+        this.reduceFactor = 1;
+        const ratio = this.pixelRatio;
+        if (container.canvas.element) {
+            const element = container.canvas.element;
+            container.canvas.size.width = element.offsetWidth * ratio;
+            container.canvas.size.height = element.offsetHeight * ratio;
+        }
+        const particles = options.particles;
+        this.attractDistance = getRangeValue(particles.move.attract.distance) * ratio;
+        this.sizeAnimationSpeed = getRangeValue(particles.size.animation.speed) * ratio;
+        this.maxSpeed = getRangeValue(particles.move.gravity.maxSpeed) * ratio;
+    }
+    initParticle(particle) {
+        const options = particle.options, ratio = this.pixelRatio, moveDistance = options.move.distance, props = particle.retina;
+        props.attractDistance = getRangeValue(options.move.attract.distance) * ratio;
+        props.moveDrift = getRangeValue(options.move.drift) * ratio;
+        props.moveSpeed = getRangeValue(options.move.speed) * ratio;
+        props.sizeAnimationSpeed = getRangeValue(options.size.animation.speed) * ratio;
+        const maxDistance = props.maxDistance;
+        maxDistance.horizontal = moveDistance.horizontal !== undefined ? moveDistance.horizontal * ratio : undefined;
+        maxDistance.vertical = moveDistance.vertical !== undefined ? moveDistance.vertical * ratio : undefined;
+        props.maxSpeed = getRangeValue(options.move.gravity.maxSpeed) * ratio;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Container.js
+
+
+
+
+
+
+
+
+
+function guardCheck(container) {
+    return container && !container.destroyed;
+}
+function loadContainerOptions(engine, container, ...sourceOptionsArr) {
+    const options = new Options(engine, container);
+    loadOptions(options, ...sourceOptionsArr);
+    return options;
+}
+const defaultPathGeneratorKey = "default", defaultPathGenerator = {
+    generate: (p) => p.velocity,
+    init: () => {
+    },
+    update: () => {
+    },
+    reset: () => {
+    },
+};
+class Container {
+    constructor(engine, id, sourceOptions) {
+        this.id = id;
+        this._intersectionManager = (entries) => {
+            if (!guardCheck(this) || !this.actualOptions.pauseOnOutsideViewport) {
+                return;
+            }
+            for (const entry of entries) {
+                if (entry.target !== this.interactivity.element) {
+                    continue;
+                }
+                (entry.isIntersecting ? this.play : this.pause)();
+            }
+        };
+        this._engine = engine;
+        this.fpsLimit = 120;
+        this.smooth = false;
+        this._delay = 0;
+        this._duration = 0;
+        this._lifeTime = 0;
+        this._firstStart = true;
+        this.started = false;
+        this.destroyed = false;
+        this._paused = true;
+        this.lastFrameTime = 0;
+        this.zLayers = 100;
+        this.pageHidden = false;
+        this._sourceOptions = sourceOptions;
+        this._initialSourceOptions = sourceOptions;
+        this.retina = new Retina(this);
+        this.canvas = new Canvas(this);
+        this.particles = new Particles(this._engine, this);
+        this.frameManager = new FrameManager(this);
+        this.pathGenerators = new Map();
+        this.interactivity = {
+            mouse: {
+                clicking: false,
+                inside: false,
+            },
+        };
+        this.plugins = new Map();
+        this.drawers = new Map();
+        this._options = loadContainerOptions(this._engine, this);
+        this.actualOptions = loadContainerOptions(this._engine, this);
+        this._eventListeners = new EventListeners(this);
+        if (typeof IntersectionObserver !== "undefined" && IntersectionObserver) {
+            this._intersectionObserver = new IntersectionObserver((entries) => this._intersectionManager(entries));
+        }
+        this._engine.dispatchEvent("containerBuilt", { container: this });
+    }
+    get options() {
+        return this._options;
+    }
+    get sourceOptions() {
+        return this._sourceOptions;
+    }
+    addClickHandler(callback) {
+        if (!guardCheck(this)) {
+            return;
+        }
+        const el = this.interactivity.element;
+        if (!el) {
+            return;
+        }
+        const clickOrTouchHandler = (e, pos, radius) => {
+            if (!guardCheck(this)) {
+                return;
+            }
+            const pxRatio = this.retina.pixelRatio, posRetina = {
+                x: pos.x * pxRatio,
+                y: pos.y * pxRatio,
+            }, particles = this.particles.quadTree.queryCircle(posRetina, radius * pxRatio);
+            callback(e, particles);
+        };
+        const clickHandler = (e) => {
+            if (!guardCheck(this)) {
+                return;
+            }
+            const mouseEvent = e, pos = {
+                x: mouseEvent.offsetX || mouseEvent.clientX,
+                y: mouseEvent.offsetY || mouseEvent.clientY,
+            };
+            clickOrTouchHandler(e, pos, 1);
+        };
+        const touchStartHandler = () => {
+            if (!guardCheck(this)) {
+                return;
+            }
+            touched = true;
+            touchMoved = false;
+        };
+        const touchMoveHandler = () => {
+            if (!guardCheck(this)) {
+                return;
+            }
+            touchMoved = true;
+        };
+        const touchEndHandler = (e) => {
+            if (!guardCheck(this)) {
+                return;
+            }
+            if (touched && !touchMoved) {
+                const touchEvent = e;
+                let lastTouch = touchEvent.touches[touchEvent.touches.length - 1];
+                if (!lastTouch) {
+                    lastTouch = touchEvent.changedTouches[touchEvent.changedTouches.length - 1];
+                    if (!lastTouch) {
+                        return;
+                    }
+                }
+                const element = this.canvas.element, canvasRect = element ? element.getBoundingClientRect() : undefined, pos = {
+                    x: lastTouch.clientX - (canvasRect ? canvasRect.left : 0),
+                    y: lastTouch.clientY - (canvasRect ? canvasRect.top : 0),
+                };
+                clickOrTouchHandler(e, pos, Math.max(lastTouch.radiusX, lastTouch.radiusY));
+            }
+            touched = false;
+            touchMoved = false;
+        };
+        const touchCancelHandler = () => {
+            if (!guardCheck(this)) {
+                return;
+            }
+            touched = false;
+            touchMoved = false;
+        };
+        let touched = false, touchMoved = false;
+        el.addEventListener("click", clickHandler);
+        el.addEventListener("touchstart", touchStartHandler);
+        el.addEventListener("touchmove", touchMoveHandler);
+        el.addEventListener("touchend", touchEndHandler);
+        el.addEventListener("touchcancel", touchCancelHandler);
+    }
+    addLifeTime(value) {
+        this._lifeTime += value;
+    }
+    addPath(key, generator, override = false) {
+        if (!guardCheck(this) || (!override && this.pathGenerators.has(key))) {
+            return false;
+        }
+        this.pathGenerators.set(key, generator ?? defaultPathGenerator);
+        return true;
+    }
+    alive() {
+        return !this._duration || this._lifeTime <= this._duration;
+    }
+    destroy() {
+        if (!guardCheck(this)) {
+            return;
+        }
+        this.stop();
+        this.particles.destroy();
+        this.canvas.destroy();
+        for (const [, drawer] of this.drawers) {
+            drawer.destroy && drawer.destroy(this);
+        }
+        for (const key of this.drawers.keys()) {
+            this.drawers.delete(key);
+        }
+        this._engine.plugins.destroy(this);
+        this.destroyed = true;
+        const mainArr = this._engine.dom(), idx = mainArr.findIndex((t) => t === this);
+        if (idx >= 0) {
+            mainArr.splice(idx, 1);
+        }
+        this._engine.dispatchEvent("containerDestroyed", { container: this });
+    }
+    draw(force) {
+        if (!guardCheck(this)) {
+            return;
+        }
+        let refreshTime = force;
+        this._drawAnimationFrame = animate()(async (timestamp) => {
+            if (refreshTime) {
+                this.lastFrameTime = undefined;
+                refreshTime = false;
+            }
+            await this.frameManager.nextFrame(timestamp);
+        });
+    }
+    exportConfiguration() {
+        return JSON.stringify(this.actualOptions, (key, value) => {
+            if (key.startsWith("_")) {
+                return;
+            }
+            return value;
+        }, 2);
+    }
+    exportImage(callback, type, quality) {
+        const element = this.canvas.element;
+        if (element) {
+            element.toBlob(callback, type ?? "image/png", quality);
+        }
+    }
+    exportImg(callback) {
+        this.exportImage(callback);
+    }
+    getAnimationStatus() {
+        return !this._paused && !this.pageHidden && guardCheck(this);
+    }
+    handleClickMode(mode) {
+        if (!guardCheck(this)) {
+            return;
+        }
+        this.particles.handleClickMode(mode);
+        for (const [, plugin] of this.plugins) {
+            plugin.handleClickMode && plugin.handleClickMode(mode);
+        }
+    }
+    async init() {
+        if (!guardCheck(this)) {
+            return;
+        }
+        const shapes = this._engine.plugins.getSupportedShapes();
+        for (const type of shapes) {
+            const drawer = this._engine.plugins.getShapeDrawer(type);
+            if (drawer) {
+                this.drawers.set(type, drawer);
+            }
+        }
+        this._options = loadContainerOptions(this._engine, this, this._initialSourceOptions, this.sourceOptions);
+        this.actualOptions = loadContainerOptions(this._engine, this, this._options);
+        const availablePlugins = this._engine.plugins.getAvailablePlugins(this);
+        for (const [id, plugin] of availablePlugins) {
+            this.plugins.set(id, plugin);
+        }
+        this.retina.init();
+        await this.canvas.init();
+        this.updateActualOptions();
+        this.canvas.initBackground();
+        this.canvas.resize();
+        this.zLayers = this.actualOptions.zLayers;
+        this._duration = getRangeValue(this.actualOptions.duration) * 1000;
+        this._delay = getRangeValue(this.actualOptions.delay) * 1000;
+        this._lifeTime = 0;
+        this.fpsLimit = this.actualOptions.fpsLimit > 0 ? this.actualOptions.fpsLimit : 120;
+        this.smooth = this.actualOptions.smooth;
+        for (const [, drawer] of this.drawers) {
+            drawer.init && (await drawer.init(this));
+        }
+        for (const [, plugin] of this.plugins) {
+            plugin.init && (await plugin.init());
+        }
+        this._engine.dispatchEvent("containerInit", { container: this });
+        this.particles.init();
+        this.particles.setDensity();
+        for (const [, plugin] of this.plugins) {
+            plugin.particlesSetup && plugin.particlesSetup();
+        }
+        this._engine.dispatchEvent("particlesSetup", { container: this });
+    }
+    async loadTheme(name) {
+        if (!guardCheck(this)) {
+            return;
+        }
+        this._currentTheme = name;
+        await this.refresh();
+    }
+    pause() {
+        if (!guardCheck(this)) {
+            return;
+        }
+        if (this._drawAnimationFrame !== undefined) {
+            cancelAnimation()(this._drawAnimationFrame);
+            delete this._drawAnimationFrame;
+        }
+        if (this._paused) {
+            return;
+        }
+        for (const [, plugin] of this.plugins) {
+            plugin.pause && plugin.pause();
+        }
+        if (!this.pageHidden) {
+            this._paused = true;
+        }
+        this._engine.dispatchEvent("containerPaused", { container: this });
+    }
+    play(force) {
+        if (!guardCheck(this)) {
+            return;
+        }
+        const needsUpdate = this._paused || force;
+        if (this._firstStart && !this.actualOptions.autoPlay) {
+            this._firstStart = false;
+            return;
+        }
+        if (this._paused) {
+            this._paused = false;
+        }
+        if (needsUpdate) {
+            for (const [, plugin] of this.plugins) {
+                if (plugin.play) {
+                    plugin.play();
+                }
+            }
+        }
+        this._engine.dispatchEvent("containerPlay", { container: this });
+        this.draw(needsUpdate || false);
+    }
+    async refresh() {
+        if (!guardCheck(this)) {
+            return;
+        }
+        this.stop();
+        return this.start();
+    }
+    async reset() {
+        if (!guardCheck(this)) {
+            return;
+        }
+        this._initialSourceOptions = undefined;
+        this._options = loadContainerOptions(this._engine, this);
+        this.actualOptions = loadContainerOptions(this._engine, this, this._options);
+        return this.refresh();
+    }
+    setNoise(noiseOrGenerator, init, update) {
+        if (!guardCheck(this)) {
+            return;
+        }
+        this.setPath(noiseOrGenerator, init, update);
+    }
+    setPath(pathOrGenerator, init, update) {
+        if (!pathOrGenerator || !guardCheck(this)) {
+            return;
+        }
+        const pathGenerator = { ...defaultPathGenerator };
+        if (typeof pathOrGenerator === "function") {
+            pathGenerator.generate = pathOrGenerator;
+            if (init) {
+                pathGenerator.init = init;
+            }
+            if (update) {
+                pathGenerator.update = update;
+            }
+        }
+        else {
+            const oldGenerator = pathGenerator;
+            pathGenerator.generate = pathOrGenerator.generate || oldGenerator.generate;
+            pathGenerator.init = pathOrGenerator.init || oldGenerator.init;
+            pathGenerator.update = pathOrGenerator.update || oldGenerator.update;
+        }
+        this.addPath(defaultPathGeneratorKey, pathGenerator, true);
+    }
+    async start() {
+        if (!guardCheck(this) || this.started) {
+            return;
+        }
+        await this.init();
+        this.started = true;
+        await new Promise((resolve) => {
+            this._delayTimeout = setTimeout(async () => {
+                this._eventListeners.addListeners();
+                if (this.interactivity.element instanceof HTMLElement && this._intersectionObserver) {
+                    this._intersectionObserver.observe(this.interactivity.element);
+                }
+                for (const [, plugin] of this.plugins) {
+                    plugin.start && (await plugin.start());
+                }
+                this._engine.dispatchEvent("containerStarted", { container: this });
+                this.play();
+                resolve();
+            }, this._delay);
+        });
+    }
+    stop() {
+        if (!guardCheck(this) || !this.started) {
+            return;
+        }
+        if (this._delayTimeout) {
+            clearTimeout(this._delayTimeout);
+            delete this._delayTimeout;
+        }
+        this._firstStart = true;
+        this.started = false;
+        this._eventListeners.removeListeners();
+        this.pause();
+        this.particles.clear();
+        this.canvas.stop();
+        if (this.interactivity.element instanceof HTMLElement && this._intersectionObserver) {
+            this._intersectionObserver.unobserve(this.interactivity.element);
+        }
+        for (const [, plugin] of this.plugins) {
+            plugin.stop && plugin.stop();
+        }
+        for (const key of this.plugins.keys()) {
+            this.plugins.delete(key);
+        }
+        this._sourceOptions = this._options;
+        this._engine.dispatchEvent("containerStopped", { container: this });
+    }
+    updateActualOptions() {
+        this.actualOptions.responsive = [];
+        const newMaxWidth = this.actualOptions.setResponsive(this.canvas.size.width, this.retina.pixelRatio, this._options);
+        this.actualOptions.setTheme(this._currentTheme);
+        if (this.responsiveMaxWidth === newMaxWidth) {
+            return false;
+        }
+        this.responsiveMaxWidth = newMaxWidth;
+        return true;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Loader.js
+
+
+
+
+async function getDataFromUrl(jsonUrl, index) {
+    const url = itemFromSingleOrMultiple(jsonUrl, index);
+    if (!url) {
+        return;
+    }
+    const response = await fetch(url);
+    if (response.ok) {
+        return response.json();
+    }
+    console.error(`${errorPrefix} ${response.status} while retrieving config file`);
+}
+class Loader {
+    constructor(engine) {
+        this._engine = engine;
+    }
+    load(tagId, options, index) {
+        const params = { index, remote: false };
+        if (typeof tagId === "string") {
+            params.tagId = tagId;
+        }
+        else {
+            params.options = tagId;
+        }
+        if (typeof options === "number") {
+            params.index = options;
+        }
+        else {
+            params.options = options ?? params.options;
+        }
+        return this.loadOptions(params);
+    }
+    async loadJSON(tagId, jsonUrl, index) {
+        let url, id;
+        if (typeof jsonUrl === "number" || jsonUrl === undefined) {
+            url = tagId;
+        }
+        else {
+            id = tagId;
+            url = jsonUrl;
+        }
+        return this.loadRemoteOptions({ tagId: id, url, index, remote: true });
+    }
+    async loadOptions(params) {
+        const tagId = params.tagId ?? `tsparticles${Math.floor(getRandom() * 10000)}`, { index, url: jsonUrl, remote } = params, options = remote ? await getDataFromUrl(jsonUrl, index) : params.options;
+        let domContainer = params.element ?? document.getElementById(tagId);
+        if (!domContainer) {
+            domContainer = document.createElement("div");
+            domContainer.id = tagId;
+            document.body.append(domContainer);
+        }
+        const currentOptions = itemFromSingleOrMultiple(options, index), dom = this._engine.dom(), oldIndex = dom.findIndex((v) => v.id === tagId);
+        if (oldIndex >= 0) {
+            const old = this._engine.domItem(oldIndex);
+            if (old && !old.destroyed) {
+                old.destroy();
+                dom.splice(oldIndex, 1);
+            }
+        }
+        let canvasEl;
+        if (domContainer.tagName.toLowerCase() === "canvas") {
+            canvasEl = domContainer;
+            canvasEl.dataset[generatedAttribute] = "false";
+        }
+        else {
+            const existingCanvases = domContainer.getElementsByTagName("canvas");
+            if (existingCanvases.length) {
+                canvasEl = existingCanvases[0];
+                canvasEl.dataset[generatedAttribute] = "false";
+            }
+            else {
+                canvasEl = document.createElement("canvas");
+                canvasEl.dataset[generatedAttribute] = "true";
+                domContainer.appendChild(canvasEl);
+            }
+        }
+        if (!canvasEl.style.width) {
+            canvasEl.style.width = "100%";
+        }
+        if (!canvasEl.style.height) {
+            canvasEl.style.height = "100%";
+        }
+        const newItem = new Container(this._engine, tagId, currentOptions);
+        if (oldIndex >= 0) {
+            dom.splice(oldIndex, 0, newItem);
+        }
+        else {
+            dom.push(newItem);
+        }
+        newItem.canvas.loadCanvas(canvasEl);
+        await newItem.start();
+        return newItem;
+    }
+    async loadRemoteOptions(params) {
+        return this.loadOptions(params);
+    }
+    async set(id, domContainer, options, index) {
+        const params = { index, remote: false };
+        if (typeof id === "string") {
+            params.tagId = id;
+        }
+        else {
+            params.element = id;
+        }
+        if (domContainer instanceof HTMLElement) {
+            params.element = domContainer;
+        }
+        else {
+            params.options = domContainer;
+        }
+        if (typeof options === "number") {
+            params.index = options;
+        }
+        else {
+            params.options = options ?? params.options;
+        }
+        return this.loadOptions(params);
+    }
+    async setJSON(id, domContainer, jsonUrl, index) {
+        let url, newId, newIndex, element;
+        if (id instanceof HTMLElement) {
+            element = id;
+            url = domContainer;
+            newIndex = jsonUrl;
+        }
+        else {
+            newId = id;
+            element = domContainer;
+            url = jsonUrl;
+            newIndex = index;
+        }
+        return this.loadRemoteOptions({ tagId: newId, url, index: newIndex, element, remote: true });
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/Plugins.js
+
+function getItemsFromInitializer(container, map, initializers, force = false) {
+    let res = map.get(container);
+    if (!res || force) {
+        res = [...initializers.values()].map((t) => t(container));
+        map.set(container, res);
+    }
+    return res;
+}
+class Plugins {
+    constructor(engine) {
+        this._engine = engine;
+        this.plugins = [];
+        this._initializers = {
+            interactors: new Map(),
+            movers: new Map(),
+            updaters: new Map(),
+        };
+        this.interactors = new Map();
+        this.movers = new Map();
+        this.updaters = new Map();
+        this.presets = new Map();
+        this.drawers = new Map();
+        this.pathGenerators = new Map();
+    }
+    addInteractor(name, initInteractor) {
+        this._initializers.interactors.set(name, initInteractor);
+    }
+    addParticleMover(name, initMover) {
+        this._initializers.movers.set(name, initMover);
+    }
+    addParticleUpdater(name, initUpdater) {
+        this._initializers.updaters.set(name, initUpdater);
+    }
+    addPathGenerator(type, pathGenerator) {
+        if (!this.getPathGenerator(type)) {
+            this.pathGenerators.set(type, pathGenerator);
+        }
+    }
+    addPlugin(plugin) {
+        if (!this.getPlugin(plugin.id)) {
+            this.plugins.push(plugin);
+        }
+    }
+    addPreset(presetKey, options, override = false) {
+        if (override || !this.getPreset(presetKey)) {
+            this.presets.set(presetKey, options);
+        }
+    }
+    addShapeDrawer(types, drawer) {
+        executeOnSingleOrMultiple(types, (type) => {
+            if (!this.getShapeDrawer(type)) {
+                this.drawers.set(type, drawer);
+            }
+        });
+    }
+    destroy(container) {
+        this.updaters.delete(container);
+        this.movers.delete(container);
+        this.interactors.delete(container);
+    }
+    getAvailablePlugins(container) {
+        const res = new Map();
+        for (const plugin of this.plugins) {
+            if (!plugin.needsPlugin(container.actualOptions)) {
+                continue;
+            }
+            res.set(plugin.id, plugin.getPlugin(container));
+        }
+        return res;
+    }
+    getInteractors(container, force = false) {
+        return getItemsFromInitializer(container, this.interactors, this._initializers.interactors, force);
+    }
+    getMovers(container, force = false) {
+        return getItemsFromInitializer(container, this.movers, this._initializers.movers, force);
+    }
+    getPathGenerator(type) {
+        return this.pathGenerators.get(type);
+    }
+    getPlugin(plugin) {
+        return this.plugins.find((t) => t.id === plugin);
+    }
+    getPreset(preset) {
+        return this.presets.get(preset);
+    }
+    getShapeDrawer(type) {
+        return this.drawers.get(type);
+    }
+    getSupportedShapes() {
+        return this.drawers.keys();
+    }
+    getUpdaters(container, force = false) {
+        return getItemsFromInitializer(container, this.updaters, this._initializers.updaters, force);
+    }
+    loadOptions(options, sourceOptions) {
+        for (const plugin of this.plugins) {
+            plugin.loadOptions(options, sourceOptions);
+        }
+    }
+    loadParticlesOptions(container, options, ...sourceOptions) {
+        const updaters = this.updaters.get(container);
+        if (!updaters) {
+            return;
+        }
+        for (const updater of updaters) {
+            if (updater.loadOptions) {
+                updater.loadOptions(options, ...sourceOptions);
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/engine.js
+
+
+
+
+class Engine {
+    constructor() {
+        this._configs = new Map();
+        this._domArray = [];
+        this._eventDispatcher = new EventDispatcher();
+        this._initialized = false;
+        this._loader = new Loader(this);
+        this.plugins = new Plugins(this);
+    }
+    get configs() {
+        const res = {};
+        for (const [name, config] of this._configs) {
+            res[name] = config;
+        }
+        return res;
+    }
+    get version() {
+        return "2.10.1";
+    }
+    addConfig(nameOrConfig, config) {
+        if (typeof nameOrConfig === "string") {
+            if (config) {
+                config.name = nameOrConfig;
+                this._configs.set(nameOrConfig, config);
+            }
+        }
+        else {
+            this._configs.set(nameOrConfig.name ?? "default", nameOrConfig);
+        }
+    }
+    addEventListener(type, listener) {
+        this._eventDispatcher.addEventListener(type, listener);
+    }
+    async addInteractor(name, interactorInitializer) {
+        this.plugins.addInteractor(name, interactorInitializer);
+        await this.refresh();
+    }
+    async addMover(name, moverInitializer) {
+        this.plugins.addParticleMover(name, moverInitializer);
+        await this.refresh();
+    }
+    async addParticleUpdater(name, updaterInitializer) {
+        this.plugins.addParticleUpdater(name, updaterInitializer);
+        await this.refresh();
+    }
+    async addPathGenerator(name, generator) {
+        this.plugins.addPathGenerator(name, generator);
+        await this.refresh();
+    }
+    async addPlugin(plugin) {
+        this.plugins.addPlugin(plugin);
+        await this.refresh();
+    }
+    async addPreset(preset, options, override = false) {
+        this.plugins.addPreset(preset, options, override);
+        await this.refresh();
+    }
+    async addShape(shape, drawer, init, afterEffect, destroy) {
+        let customDrawer;
+        if (typeof drawer === "function") {
+            customDrawer = {
+                afterEffect: afterEffect,
+                destroy: destroy,
+                draw: drawer,
+                init: init,
+            };
+        }
+        else {
+            customDrawer = drawer;
+        }
+        this.plugins.addShapeDrawer(shape, customDrawer);
+        await this.refresh();
+    }
+    dispatchEvent(type, args) {
+        this._eventDispatcher.dispatchEvent(type, args);
+    }
+    dom() {
+        return this._domArray;
+    }
+    domItem(index) {
+        const dom = this.dom(), item = dom[index];
+        if (!item || item.destroyed) {
+            dom.splice(index, 1);
+            return;
+        }
+        return item;
+    }
+    init() {
+        if (this._initialized) {
+            return;
+        }
+        this._initialized = true;
+    }
+    async load(tagId, options) {
+        return this._loader.load(tagId, options);
+    }
+    async loadFromArray(tagId, options, index) {
+        return this._loader.load(tagId, options, index);
+    }
+    async loadJSON(tagId, pathConfigJson, index) {
+        return this._loader.loadJSON(tagId, pathConfigJson, index);
+    }
+    async refresh() {
+        this.dom().forEach((t) => t.refresh());
+    }
+    removeEventListener(type, listener) {
+        this._eventDispatcher.removeEventListener(type, listener);
+    }
+    async set(id, element, options) {
+        return this._loader.set(id, element, options);
+    }
+    async setJSON(id, element, pathConfigJson, index) {
+        return this._loader.setJSON(id, element, pathConfigJson, index);
+    }
+    setOnClickHandler(callback) {
+        const dom = this.dom();
+        if (!dom.length) {
+            throw new Error(`${errorPrefix} can only set click handlers after calling tsParticles.load() or tsParticles.loadJSON()`);
+        }
+        for (const domItem of dom) {
+            domItem.addClickHandler(callback);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Utils/HslColorManager.js
+
+
+class HslColorManager {
+    constructor() {
+        this.key = "hsl";
+        this.stringPrefix = "hsl";
+    }
+    handleColor(color) {
+        const colorValue = color.value, hslColor = colorValue.hsl ?? color.value;
+        if (hslColor.h !== undefined && hslColor.s !== undefined && hslColor.l !== undefined) {
+            return hslToRgb(hslColor);
+        }
+    }
+    handleRangeColor(color) {
+        const colorValue = color.value, hslColor = colorValue.hsl ?? color.value;
+        if (hslColor.h !== undefined && hslColor.l !== undefined) {
+            return hslToRgb({
+                h: getRangeValue(hslColor.h),
+                l: getRangeValue(hslColor.l),
+                s: getRangeValue(hslColor.s),
+            });
+        }
+    }
+    parseString(input) {
+        if (!input.startsWith("hsl")) {
+            return;
+        }
+        const regex = /hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%\s*(,\s*([\d.%]+)\s*)?\)/i, result = regex.exec(input);
+        return result
+            ? hslaToRgba({
+                a: result.length > 4 ? parseAlpha(result[5]) : 1,
+                h: parseInt(result[1], 10),
+                l: parseInt(result[3], 10),
+                s: parseInt(result[2], 10),
+            })
+            : undefined;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Utils/RgbColorManager.js
+
+class RgbColorManager {
+    constructor() {
+        this.key = "rgb";
+        this.stringPrefix = "rgb";
+    }
+    handleColor(color) {
+        const colorValue = color.value, rgbColor = colorValue.rgb ?? color.value;
+        if (rgbColor.r !== undefined) {
+            return rgbColor;
+        }
+    }
+    handleRangeColor(color) {
+        const colorValue = color.value, rgbColor = colorValue.rgb ?? color.value;
+        if (rgbColor.r !== undefined) {
+            return {
+                r: getRangeValue(rgbColor.r),
+                g: getRangeValue(rgbColor.g),
+                b: getRangeValue(rgbColor.b),
+            };
+        }
+    }
+    parseString(input) {
+        if (!input.startsWith(this.stringPrefix)) {
+            return;
+        }
+        const regex = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(,\s*([\d.%]+)\s*)?\)/i, result = regex.exec(input);
+        return result
+            ? {
+                a: result.length > 4 ? parseAlpha(result[5]) : 1,
+                b: parseInt(result[3], 10),
+                g: parseInt(result[2], 10),
+                r: parseInt(result[1], 10),
+            }
+            : undefined;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/ExternalInteractorBase.js
+class ExternalInteractorBase {
+    constructor(container) {
+        this.container = container;
+        this.type = "external";
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/Core/Utils/ParticlesInteractorBase.js
+class ParticlesInteractorBase {
+    constructor(container) {
+        this.container = container;
+        this.type = "particles";
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/exports.js
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-engine/esm/index.js
+
+
+
+
+
+const rgbColorManager = new RgbColorManager(), hslColorManager = new HslColorManager();
+addColorManager(rgbColorManager);
+addColorManager(hslColorManager);
+const tsParticles = new Engine();
+tsParticles.init();
+if (!isSsr()) {
+    window.tsParticles = tsParticles;
+}
+
+
+
+
+// EXTERNAL MODULE: ./node_modules/deep-eql/index.js
+var deep_eql = __webpack_require__(310);
+var deep_eql_default = /*#__PURE__*/__webpack_require__.n(deep_eql);
+;// CONCATENATED MODULE: ./node_modules/react-tsparticles/esm/Particles.js
+
+
+
+const defaultId = "tsparticles";
+class Particles_Particles extends react.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            init: false,
+            library: undefined,
+        };
+    }
+    destroy() {
+        if (!this.state.library) {
+            return;
+        }
+        this.state.library.destroy();
+        this.setState({
+            library: undefined,
+        });
+    }
+    shouldComponentUpdate(nextProps) {
+        return !deep_eql_default()(nextProps, this.props);
+    }
+    componentDidUpdate() {
+        this.refresh();
+    }
+    forceUpdate() {
+        this.refresh().then(() => {
+            super.forceUpdate();
+        });
+    }
+    componentDidMount() {
+        (async () => {
+            if (this.props.init) {
+                await this.props.init(tsParticles);
+            }
+            this.setState({
+                init: true,
+            }, async () => {
+                await this.loadParticles();
+            });
+        })();
+    }
+    componentWillUnmount() {
+        this.destroy();
+    }
+    render() {
+        const { width, height, className, canvasClassName, id } = this.props;
+        return (react.createElement("div", { className: className, id: id },
+            react.createElement("canvas", { className: canvasClassName, style: {
+                    ...this.props.style,
+                    width,
+                    height,
+                } })));
+    }
+    async refresh() {
+        this.destroy();
+        await this.loadParticles();
+    }
+    async loadParticles() {
+        if (!this.state.init) {
+            return;
+        }
+        const cb = async (container) => {
+            if (this.props.container) {
+                this.props.container.current = container;
+            }
+            this.setState({
+                library: container,
+            });
+            if (this.props.loaded) {
+                await this.props.loaded(container);
+            }
+        };
+        const id = this.props.id ?? Particles_Particles.defaultProps.id ?? defaultId, container = this.props.url
+            ? await tsParticles.loadJSON(id, this.props.url)
+            : await tsParticles.load(id, this.props.params ?? this.props.options);
+        await cb(container);
+    }
+}
+Particles_Particles.defaultProps = {
+    width: "100%",
+    height: "100%",
+    options: {},
+    style: {},
+    url: undefined,
+    id: defaultId,
+};
+/* harmony default export */ const esm_Particles = (Particles_Particles);
+
+;// CONCATENATED MODULE: ./node_modules/react-tsparticles/esm/index.js
+
+/* harmony default export */ const esm = (esm_Particles);
+
+
+;// CONCATENATED MODULE: ./src/Components/Ui/TsParticles/TsParticles.module.scss
+// extracted by mini-css-extract-plugin
+/* harmony default export */ const TsParticles_module = ({"particlesWrapper":"oswHstXJ","particlesWrapper__position_left":"dRZvl3vn","particlesWrapper__position_right":"xItfoWrl"});
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-absorbers/esm/Options/Classes/AbsorberSizeLimit.js
+class AbsorberSizeLimit {
+    constructor() {
+        this.radius = 0;
+        this.mass = 0;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.mass !== undefined) {
+            this.mass = data.mass;
+        }
+        if (data.radius !== undefined) {
+            this.radius = data.radius;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-absorbers/esm/Options/Classes/AbsorberSize.js
+
+
+class AbsorberSize extends ValueWithRandom {
+    constructor() {
+        super();
+        this.density = 5;
+        this.value = 50;
+        this.limit = new AbsorberSizeLimit();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        super.load(data);
+        if (data.density !== undefined) {
+            this.density = data.density;
+        }
+        if (typeof data.limit === "number") {
+            this.limit.radius = data.limit;
+        }
+        else {
+            this.limit.load(data.limit);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-absorbers/esm/Options/Classes/Absorber.js
+
+
+class Absorber {
+    constructor() {
+        this.color = new OptionsColor();
+        this.color.value = "#000000";
+        this.draggable = false;
+        this.opacity = 1;
+        this.destroy = true;
+        this.orbits = false;
+        this.size = new AbsorberSize();
+    }
+    load(data) {
+        if (data === undefined) {
+            return;
+        }
+        if (data.color !== undefined) {
+            this.color = OptionsColor.create(this.color, data.color);
+        }
+        if (data.draggable !== undefined) {
+            this.draggable = data.draggable;
+        }
+        this.name = data.name;
+        if (data.opacity !== undefined) {
+            this.opacity = data.opacity;
+        }
+        if (data.position !== undefined) {
+            this.position = {};
+            if (data.position.x !== undefined) {
+                this.position.x = NumberUtils_setRangeValue(data.position.x);
+            }
+            if (data.position.y !== undefined) {
+                this.position.y = NumberUtils_setRangeValue(data.position.y);
+            }
+        }
+        if (data.size !== undefined) {
+            this.size.load(data.size);
+        }
+        if (data.destroy !== undefined) {
+            this.destroy = data.destroy;
+        }
+        if (data.orbits !== undefined) {
+            this.orbits = data.orbits;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-absorbers/esm/AbsorberInstance.js
+
+
+class AbsorberInstance {
+    constructor(absorbers, container, options, position) {
+        this.absorbers = absorbers;
+        this.container = container;
+        this._calcPosition = () => {
+            const exactPosition = calcPositionOrRandomFromSizeRanged({
+                size: this.container.canvas.size,
+                position: this.options.position,
+            });
+            return Vector.create(exactPosition.x, exactPosition.y);
+        };
+        this._updateParticlePosition = (particle, v) => {
+            if (particle.destroyed) {
+                return;
+            }
+            const container = this.container, canvasSize = container.canvas.size;
+            if (particle.needsNewPosition) {
+                const newPosition = calcPositionOrRandomFromSize({ size: canvasSize });
+                particle.position.setTo(newPosition);
+                particle.velocity.setTo(particle.initialVelocity);
+                particle.absorberOrbit = undefined;
+                particle.needsNewPosition = false;
+            }
+            if (this.options.orbits) {
+                if (particle.absorberOrbit === undefined) {
+                    particle.absorberOrbit = Vector.create(0, 0);
+                    particle.absorberOrbit.length = getDistance(particle.getPosition(), this.position);
+                    particle.absorberOrbit.angle = getRandom() * Math.PI * 2;
+                }
+                if (particle.absorberOrbit.length <= this.size && !this.options.destroy) {
+                    const minSize = Math.min(canvasSize.width, canvasSize.height);
+                    particle.absorberOrbit.length = minSize * (1 + (getRandom() * 0.2 - 0.1));
+                }
+                if (particle.absorberOrbitDirection === undefined) {
+                    particle.absorberOrbitDirection =
+                        particle.velocity.x >= 0 ? "clockwise" : "counter-clockwise";
+                }
+                const orbitRadius = particle.absorberOrbit.length, orbitAngle = particle.absorberOrbit.angle, orbitDirection = particle.absorberOrbitDirection;
+                particle.velocity.setTo(Vector.origin);
+                const updateFunc = {
+                    x: orbitDirection === "clockwise" ? Math.cos : Math.sin,
+                    y: orbitDirection === "clockwise" ? Math.sin : Math.cos,
+                };
+                particle.position.x = this.position.x + orbitRadius * updateFunc.x(orbitAngle);
+                particle.position.y = this.position.y + orbitRadius * updateFunc.y(orbitAngle);
+                particle.absorberOrbit.length -= v.length;
+                particle.absorberOrbit.angle +=
+                    (((particle.retina.moveSpeed ?? 0) * container.retina.pixelRatio) / 100) *
+                        container.retina.reduceFactor;
+            }
+            else {
+                const addV = Vector.origin;
+                addV.length = v.length;
+                addV.angle = v.angle;
+                particle.velocity.addTo(addV);
+            }
+        };
+        this.initialPosition = position ? Vector.create(position.x, position.y) : undefined;
+        if (options instanceof Absorber) {
+            this.options = options;
+        }
+        else {
+            this.options = new Absorber();
+            this.options.load(options);
+        }
+        this.dragging = false;
+        this.name = this.options.name;
+        this.opacity = this.options.opacity;
+        this.size = getRangeValue(this.options.size.value) * container.retina.pixelRatio;
+        this.mass = this.size * this.options.size.density * container.retina.reduceFactor;
+        const limit = this.options.size.limit;
+        this.limit = {
+            radius: limit.radius * container.retina.pixelRatio * container.retina.reduceFactor,
+            mass: limit.mass,
+        };
+        this.color = rangeColorToRgb(this.options.color) ?? {
+            b: 0,
+            g: 0,
+            r: 0,
+        };
+        this.position = this.initialPosition?.copy() ?? this._calcPosition();
+    }
+    attract(particle) {
+        const container = this.container, options = this.options;
+        if (options.draggable) {
+            const mouse = container.interactivity.mouse;
+            if (mouse.clicking && mouse.downPosition) {
+                const mouseDist = getDistance(this.position, mouse.downPosition);
+                if (mouseDist <= this.size) {
+                    this.dragging = true;
+                }
+            }
+            else {
+                this.dragging = false;
+            }
+            if (this.dragging && mouse.position) {
+                this.position.x = mouse.position.x;
+                this.position.y = mouse.position.y;
+            }
+        }
+        const pos = particle.getPosition(), { dx, dy, distance } = getDistances(this.position, pos), v = Vector.create(dx, dy);
+        v.length = (this.mass / Math.pow(distance, 2)) * container.retina.reduceFactor;
+        if (distance < this.size + particle.getRadius()) {
+            const sizeFactor = particle.getRadius() * 0.033 * container.retina.pixelRatio;
+            if ((this.size > particle.getRadius() && distance < this.size - particle.getRadius()) ||
+                (particle.absorberOrbit !== undefined && particle.absorberOrbit.length < 0)) {
+                if (options.destroy) {
+                    particle.destroy();
+                }
+                else {
+                    particle.needsNewPosition = true;
+                    this._updateParticlePosition(particle, v);
+                }
+            }
+            else {
+                if (options.destroy) {
+                    particle.size.value -= sizeFactor;
+                }
+                this._updateParticlePosition(particle, v);
+            }
+            if (this.limit.radius <= 0 || this.size < this.limit.radius) {
+                this.size += sizeFactor;
+            }
+            if (this.limit.mass <= 0 || this.mass < this.limit.mass) {
+                this.mass += sizeFactor * this.options.size.density * container.retina.reduceFactor;
+            }
+        }
+        else {
+            this._updateParticlePosition(particle, v);
+        }
+    }
+    draw(context) {
+        context.translate(this.position.x, this.position.y);
+        context.beginPath();
+        context.arc(0, 0, this.size, 0, Math.PI * 2, false);
+        context.closePath();
+        context.fillStyle = getStyleFromRgb(this.color, this.opacity);
+        context.fill();
+    }
+    resize() {
+        const initialPosition = this.initialPosition;
+        this.position =
+            initialPosition && isPointInside(initialPosition, this.container.canvas.size, Vector.origin)
+                ? initialPosition
+                : this._calcPosition();
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-absorbers/esm/Absorbers.js
+
+
+class Absorbers {
+    constructor(container) {
+        this.container = container;
+        this.array = [];
+        this.absorbers = [];
+        this.interactivityAbsorbers = [];
+        container.getAbsorber = (idxOrName) => idxOrName === undefined || typeof idxOrName === "number"
+            ? this.array[idxOrName || 0]
+            : this.array.find((t) => t.name === idxOrName);
+        container.addAbsorber = (options, position) => this.addAbsorber(options, position);
+    }
+    addAbsorber(options, position) {
+        const absorber = new AbsorberInstance(this, this.container, options, position);
+        this.array.push(absorber);
+        return absorber;
+    }
+    draw(context) {
+        for (const absorber of this.array) {
+            absorber.draw(context);
+        }
+    }
+    handleClickMode(mode) {
+        const absorberOptions = this.absorbers, modeAbsorbers = this.interactivityAbsorbers;
+        if (mode === "absorber") {
+            const absorbersModeOptions = itemFromSingleOrMultiple(modeAbsorbers), absorbersOptions = absorbersModeOptions ?? itemFromSingleOrMultiple(absorberOptions), aPosition = this.container.interactivity.mouse.clickPosition;
+            this.addAbsorber(absorbersOptions, aPosition);
+        }
+    }
+    async init() {
+        this.absorbers = this.container.actualOptions.absorbers;
+        this.interactivityAbsorbers = this.container.actualOptions.interactivity.modes.absorbers;
+        executeOnSingleOrMultiple(this.absorbers, (absorber) => {
+            this.addAbsorber(absorber);
+        });
+    }
+    particleUpdate(particle) {
+        for (const absorber of this.array) {
+            absorber.attract(particle);
+            if (particle.destroyed) {
+                break;
+            }
+        }
+    }
+    removeAbsorber(absorber) {
+        const index = this.array.indexOf(absorber);
+        if (index >= 0) {
+            this.array.splice(index, 1);
+        }
+    }
+    resize() {
+        for (const absorber of this.array) {
+            absorber.resize();
+        }
+    }
+    stop() {
+        this.array = [];
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-absorbers/esm/index.js
+
+
+
+class AbsorbersPlugin {
+    constructor() {
+        this.id = "absorbers";
+    }
+    getPlugin(container) {
+        return new Absorbers(container);
+    }
+    loadOptions(options, source) {
+        if (!this.needsPlugin(options) && !this.needsPlugin(source)) {
+            return;
+        }
+        if (source?.absorbers) {
+            options.absorbers = executeOnSingleOrMultiple(source.absorbers, (absorber) => {
+                const tmp = new Absorber();
+                tmp.load(absorber);
+                return tmp;
+            });
+        }
+        options.interactivity.modes.absorbers = executeOnSingleOrMultiple(source?.interactivity?.modes?.absorbers, (absorber) => {
+            const tmp = new Absorber();
+            tmp.load(absorber);
+            return tmp;
+        });
+    }
+    needsPlugin(options) {
+        if (!options) {
+            return false;
+        }
+        const absorbers = options.absorbers;
+        if (absorbers instanceof Array) {
+            return !!absorbers.length;
+        }
+        else if (absorbers) {
+            return true;
+        }
+        else if (options.interactivity?.events?.onClick?.mode &&
+            isInArray("absorber", options.interactivity.events.onClick.mode)) {
+            return true;
+        }
+        return false;
+    }
+}
+async function loadAbsorbersPlugin(engine) {
+    const plugin = new AbsorbersPlugin();
+    await engine.addPlugin(plugin);
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-destroy/esm/Options/Classes/DestroyBounds.js
+
+class DestroyBounds {
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.bottom !== undefined) {
+            this.bottom = NumberUtils_setRangeValue(data.bottom);
+        }
+        if (data.left !== undefined) {
+            this.left = NumberUtils_setRangeValue(data.left);
+        }
+        if (data.right !== undefined) {
+            this.right = NumberUtils_setRangeValue(data.right);
+        }
+        if (data.top !== undefined) {
+            this.top = NumberUtils_setRangeValue(data.top);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-destroy/esm/Options/Classes/SplitFactor.js
+
+class SplitFactor extends ValueWithRandom {
+    constructor() {
+        super();
+        this.value = 3;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-destroy/esm/Options/Classes/SplitRate.js
+
+class SplitRate extends ValueWithRandom {
+    constructor() {
+        super();
+        this.value = { min: 4, max: 9 };
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-destroy/esm/Options/Classes/Split.js
+
+
+
+class Split {
+    constructor() {
+        this.count = 1;
+        this.factor = new SplitFactor();
+        this.rate = new SplitRate();
+        this.sizeOffset = true;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.color !== undefined) {
+            this.color = OptionsColor.create(this.color, data.color);
+        }
+        if (data.count !== undefined) {
+            this.count = data.count;
+        }
+        this.factor.load(data.factor);
+        this.rate.load(data.rate);
+        this.particles = executeOnSingleOrMultiple(data.particles, (particles) => {
+            return deepExtend({}, particles);
+        });
+        if (data.sizeOffset !== undefined) {
+            this.sizeOffset = data.sizeOffset;
+        }
+        if (data.colorOffset) {
+            this.colorOffset = this.colorOffset ?? {};
+            if (data.colorOffset.h !== undefined) {
+                this.colorOffset.h = data.colorOffset.h;
+            }
+            if (data.colorOffset.s !== undefined) {
+                this.colorOffset.s = data.colorOffset.s;
+            }
+            if (data.colorOffset.l !== undefined) {
+                this.colorOffset.l = data.colorOffset.l;
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-destroy/esm/Options/Classes/Destroy.js
+
+
+class Destroy {
+    constructor() {
+        this.bounds = new DestroyBounds();
+        this.mode = "none";
+        this.split = new Split();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.mode) {
+            this.mode = data.mode;
+        }
+        if (data.bounds) {
+            this.bounds.load(data.bounds);
+        }
+        this.split.load(data.split);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-destroy/esm/Utils.js
+
+function addSplitParticle(engine, container, parent, splitParticlesOptions) {
+    const destroyOptions = parent.options.destroy;
+    if (!destroyOptions) {
+        return;
+    }
+    const splitOptions = destroyOptions.split, options = loadParticlesOptions(engine, container, parent.options), factor = getValue(splitOptions.factor), parentColor = parent.getFillColor();
+    if (splitOptions.color) {
+        options.color.load(splitOptions.color);
+    }
+    else if (splitOptions.colorOffset && parentColor) {
+        options.color.load({
+            value: {
+                hsl: {
+                    h: parentColor.h + getRangeValue(splitOptions.colorOffset.h ?? 0),
+                    s: parentColor.s + getRangeValue(splitOptions.colorOffset.s ?? 0),
+                    l: parentColor.l + getRangeValue(splitOptions.colorOffset.l ?? 0),
+                },
+            },
+        });
+    }
+    else {
+        options.color.load({
+            value: {
+                hsl: parent.getFillColor(),
+            },
+        });
+    }
+    options.move.load({
+        center: {
+            x: parent.position.x,
+            y: parent.position.y,
+            mode: "precise",
+        },
+    });
+    if (typeof options.size.value === "number") {
+        options.size.value /= factor;
+    }
+    else {
+        options.size.value.min /= factor;
+        options.size.value.max /= factor;
+    }
+    options.load(splitParticlesOptions);
+    const offset = splitOptions.sizeOffset ? NumberUtils_setRangeValue(-parent.size.value, parent.size.value) : 0, position = {
+        x: parent.position.x + randomInRange(offset),
+        y: parent.position.y + randomInRange(offset),
+    };
+    return container.particles.addParticle(position, options, parent.group, (particle) => {
+        if (particle.size.value < 0.5) {
+            return false;
+        }
+        particle.velocity.length = randomInRange(NumberUtils_setRangeValue(parent.velocity.length, particle.velocity.length));
+        particle.splitCount = (parent.splitCount ?? 0) + 1;
+        particle.unbreakable = true;
+        setTimeout(() => {
+            particle.unbreakable = false;
+        }, 500);
+        return true;
+    });
+}
+function split(engine, container, particle) {
+    const destroyOptions = particle.options.destroy;
+    if (!destroyOptions) {
+        return;
+    }
+    const splitOptions = destroyOptions.split;
+    if (splitOptions.count >= 0 && (particle.splitCount === undefined || particle.splitCount++ > splitOptions.count)) {
+        return;
+    }
+    const rate = getValue(splitOptions.rate), particlesSplitOptions = itemFromSingleOrMultiple(splitOptions.particles);
+    for (let i = 0; i < rate; i++) {
+        addSplitParticle(engine, container, particle, particlesSplitOptions);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-destroy/esm/DestroyUpdater.js
+
+
+
+class DestroyUpdater {
+    constructor(engine, container) {
+        this.engine = engine;
+        this.container = container;
+    }
+    init(particle) {
+        const container = this.container, particlesOptions = particle.options, destroyOptions = particlesOptions.destroy;
+        if (!destroyOptions) {
+            return;
+        }
+        particle.splitCount = 0;
+        const destroyBoundsOptions = destroyOptions.bounds;
+        if (!particle.destroyBounds) {
+            particle.destroyBounds = {};
+        }
+        const { bottom, left, right, top } = destroyBoundsOptions, { destroyBounds } = particle, canvasSize = container.canvas.size;
+        if (bottom) {
+            destroyBounds.bottom = (getRangeValue(bottom) * canvasSize.height) / 100;
+        }
+        if (left) {
+            destroyBounds.left = (getRangeValue(left) * canvasSize.width) / 100;
+        }
+        if (right) {
+            destroyBounds.right = (getRangeValue(right) * canvasSize.width) / 100;
+        }
+        if (top) {
+            destroyBounds.top = (getRangeValue(top) * canvasSize.height) / 100;
+        }
+    }
+    isEnabled(particle) {
+        return !particle.destroyed;
+    }
+    loadOptions(options, ...sources) {
+        if (!options.destroy) {
+            options.destroy = new Destroy();
+        }
+        for (const source of sources) {
+            options.destroy.load(source?.destroy);
+        }
+    }
+    particleDestroyed(particle, override) {
+        if (override) {
+            return;
+        }
+        const destroyOptions = particle.options.destroy;
+        if (destroyOptions && destroyOptions.mode === "split") {
+            split(this.engine, this.container, particle);
+        }
+    }
+    update(particle) {
+        if (!this.isEnabled(particle)) {
+            return;
+        }
+        const position = particle.getPosition(), bounds = particle.destroyBounds;
+        if (!bounds) {
+            return;
+        }
+        if ((bounds.bottom !== undefined && position.y >= bounds.bottom) ||
+            (bounds.left !== undefined && position.x <= bounds.left) ||
+            (bounds.right !== undefined && position.x >= bounds.right) ||
+            (bounds.top !== undefined && position.y <= bounds.top)) {
+            particle.destroy();
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-destroy/esm/index.js
+
+async function loadDestroyUpdater(engine) {
+    await engine.addParticleUpdater("destroy", (container) => new DestroyUpdater(engine, container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-emitters/esm/Shapes/Circle/CircleShape.js
+
+class CircleShape {
+    randomPosition(position, size, fill) {
+        const generateTheta = (x, y) => {
+            const u = getRandom() / 4.0, theta = Math.atan((y / x) * Math.tan(2 * Math.PI * u)), v = getRandom();
+            if (v < 0.25) {
+                return theta;
+            }
+            else if (v < 0.5) {
+                return Math.PI - theta;
+            }
+            else if (v < 0.75) {
+                return Math.PI + theta;
+            }
+            else {
+                return -theta;
+            }
+        }, radius = (x, y, theta) => (x * y) / Math.sqrt((y * Math.cos(theta)) ** 2 + (x * Math.sin(theta)) ** 2), [a, b] = [size.width / 2, size.height / 2], randomTheta = generateTheta(a, b), maxRadius = radius(a, b, randomTheta), randomRadius = fill ? maxRadius * Math.sqrt(getRandom()) : maxRadius;
+        return {
+            x: position.x + randomRadius * Math.cos(randomTheta),
+            y: position.y + randomRadius * Math.sin(randomTheta),
+        };
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-emitters/esm/Options/Classes/EmitterLife.js
+class EmitterLife {
+    constructor() {
+        this.wait = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.count !== undefined) {
+            this.count = data.count;
+        }
+        if (data.delay !== undefined) {
+            this.delay = data.delay;
+        }
+        if (data.duration !== undefined) {
+            this.duration = data.duration;
+        }
+        if (data.wait !== undefined) {
+            this.wait = data.wait;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-emitters/esm/Options/Classes/EmitterRate.js
+
+class EmitterRate {
+    constructor() {
+        this.quantity = 1;
+        this.delay = 0.1;
+    }
+    load(data) {
+        if (data === undefined) {
+            return;
+        }
+        if (data.quantity !== undefined) {
+            this.quantity = NumberUtils_setRangeValue(data.quantity);
+        }
+        if (data.delay !== undefined) {
+            this.delay = NumberUtils_setRangeValue(data.delay);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-emitters/esm/Options/Classes/EmitterSize.js
+class EmitterSize {
+    constructor() {
+        this.mode = "percent";
+        this.height = 0;
+        this.width = 0;
+    }
+    load(data) {
+        if (data === undefined) {
+            return;
+        }
+        if (data.mode !== undefined) {
+            this.mode = data.mode;
+        }
+        if (data.height !== undefined) {
+            this.height = data.height;
+        }
+        if (data.width !== undefined) {
+            this.width = data.width;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-emitters/esm/Options/Classes/Emitter.js
+
+
+
+
+class Emitter {
+    constructor() {
+        this.autoPlay = true;
+        this.fill = true;
+        this.life = new EmitterLife();
+        this.rate = new EmitterRate();
+        this.shape = "square";
+        this.startCount = 0;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.autoPlay !== undefined) {
+            this.autoPlay = data.autoPlay;
+        }
+        if (data.size !== undefined) {
+            if (!this.size) {
+                this.size = new EmitterSize();
+            }
+            this.size.load(data.size);
+        }
+        if (data.direction !== undefined) {
+            this.direction = data.direction;
+        }
+        this.domId = data.domId;
+        if (data.fill !== undefined) {
+            this.fill = data.fill;
+        }
+        this.life.load(data.life);
+        this.name = data.name;
+        this.particles = executeOnSingleOrMultiple(data.particles, (particles) => {
+            return deepExtend({}, particles);
+        });
+        this.rate.load(data.rate);
+        if (data.shape !== undefined) {
+            this.shape = data.shape;
+        }
+        if (data.position !== undefined) {
+            this.position = {};
+            if (data.position.x !== undefined) {
+                this.position.x = NumberUtils_setRangeValue(data.position.x);
+            }
+            if (data.position.y !== undefined) {
+                this.position.y = NumberUtils_setRangeValue(data.position.y);
+            }
+        }
+        if (data.spawnColor !== undefined) {
+            if (this.spawnColor === undefined) {
+                this.spawnColor = new AnimatableColor();
+            }
+            this.spawnColor.load(data.spawnColor);
+        }
+        if (data.startCount !== undefined) {
+            this.startCount = data.startCount;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-emitters/esm/EmitterInstance.js
+
+
+
+class EmitterInstance {
+    constructor(engine, emitters, container, options, position) {
+        this.emitters = emitters;
+        this.container = container;
+        this._calcPosition = () => {
+            return calcPositionOrRandomFromSizeRanged({
+                size: this.container.canvas.size,
+                position: this.options.position,
+            });
+        };
+        this._destroy = () => {
+            this.emitters.removeEmitter(this);
+            this._engine.dispatchEvent("emitterDestroyed", {
+                container: this.container,
+                data: {
+                    emitter: this,
+                },
+            });
+        };
+        this._emit = () => {
+            if (this._paused) {
+                return;
+            }
+            const quantity = getRangeValue(this.options.rate.quantity);
+            this._emitParticles(quantity);
+        };
+        this._emitParticles = (quantity) => {
+            const position = this.getPosition(), size = this.getSize(), singleParticlesOptions = itemFromSingleOrMultiple(this._particlesOptions);
+            for (let i = 0; i < quantity; i++) {
+                const particlesOptions = deepExtend({}, singleParticlesOptions);
+                if (this.spawnColor) {
+                    const hslAnimation = this.options.spawnColor?.animation;
+                    if (hslAnimation) {
+                        this.spawnColor.h = this._setColorAnimation(hslAnimation.h, this.spawnColor.h, 360);
+                        this.spawnColor.s = this._setColorAnimation(hslAnimation.s, this.spawnColor.s, 100);
+                        this.spawnColor.l = this._setColorAnimation(hslAnimation.l, this.spawnColor.l, 100);
+                    }
+                    if (!particlesOptions.color) {
+                        particlesOptions.color = {
+                            value: this.spawnColor,
+                        };
+                    }
+                    else {
+                        particlesOptions.color.value = this.spawnColor;
+                    }
+                }
+                if (!position) {
+                    return;
+                }
+                const pPosition = this._shape?.randomPosition(position, size, this.fill) ?? position;
+                this.container.particles.addParticle(pPosition, particlesOptions);
+            }
+        };
+        this._prepareToDie = () => {
+            if (this._paused) {
+                return;
+            }
+            const duration = this.options.life?.duration;
+            if (this.container.retina.reduceFactor &&
+                (this._lifeCount > 0 || this._immortal) &&
+                duration !== undefined &&
+                duration > 0) {
+                this._duration = duration * 1000;
+            }
+        };
+        this._setColorAnimation = (animation, initValue, maxValue) => {
+            const container = this.container;
+            if (!animation.enable) {
+                return initValue;
+            }
+            const colorOffset = randomInRange(animation.offset), delay = getRangeValue(this.options.rate.delay), emitFactor = (1000 * delay) / container.retina.reduceFactor, colorSpeed = getRangeValue(animation.speed ?? 0);
+            return (initValue + (colorSpeed * container.fpsLimit) / emitFactor + colorOffset * 3.6) % maxValue;
+        };
+        this._engine = engine;
+        this._currentDuration = 0;
+        this._currentEmitDelay = 0;
+        this._currentSpawnDelay = 0;
+        this._initialPosition = position;
+        if (options instanceof Emitter) {
+            this.options = options;
+        }
+        else {
+            this.options = new Emitter();
+            this.options.load(options);
+        }
+        this._spawnDelay = ((this.options.life.delay ?? 0) * 1000) / this.container.retina.reduceFactor;
+        this.position = this._initialPosition ?? this._calcPosition();
+        this.name = this.options.name;
+        this._shape = this._engine.emitterShapeManager?.getShape(this.options.shape);
+        console.log(this.options.shape, this._shape);
+        this.fill = this.options.fill;
+        this._firstSpawn = !this.options.life.wait;
+        this._startParticlesAdded = false;
+        let particlesOptions = deepExtend({}, this.options.particles);
+        particlesOptions ??= {};
+        particlesOptions.move ??= {};
+        particlesOptions.move.direction ??= this.options.direction;
+        if (this.options.spawnColor) {
+            this.spawnColor = rangeColorToHsl(this.options.spawnColor);
+        }
+        this._paused = !this.options.autoPlay;
+        this._particlesOptions = particlesOptions;
+        this.size =
+            this.options.size ??
+                (() => {
+                    const size = new EmitterSize();
+                    size.load({
+                        height: 0,
+                        mode: "percent",
+                        width: 0,
+                    });
+                    return size;
+                })();
+        this._lifeCount = this.options.life.count ?? -1;
+        this._immortal = this._lifeCount <= 0;
+        this._engine.dispatchEvent("emitterCreated", {
+            container,
+            data: {
+                emitter: this,
+            },
+        });
+        this.play();
+    }
+    externalPause() {
+        this._paused = true;
+        this.pause();
+    }
+    externalPlay() {
+        this._paused = false;
+        this.play();
+    }
+    getPosition() {
+        if (this.options.domId) {
+            const container = this.container, element = document.getElementById(this.options.domId);
+            if (element) {
+                const elRect = element.getBoundingClientRect();
+                return {
+                    x: (elRect.x + elRect.width / 2) * container.retina.pixelRatio,
+                    y: (elRect.y + elRect.height / 2) * container.retina.pixelRatio,
+                };
+            }
+        }
+        return this.position;
+    }
+    getSize() {
+        const container = this.container;
+        if (this.options.domId) {
+            const element = document.getElementById(this.options.domId);
+            if (element) {
+                const elRect = element.getBoundingClientRect();
+                return {
+                    width: elRect.width * container.retina.pixelRatio,
+                    height: elRect.height * container.retina.pixelRatio,
+                };
+            }
+        }
+        return {
+            width: this.size.mode === "percent"
+                ? (container.canvas.size.width * this.size.width) / 100
+                : this.size.width,
+            height: this.size.mode === "percent"
+                ? (container.canvas.size.height * this.size.height) / 100
+                : this.size.height,
+        };
+    }
+    pause() {
+        if (this._paused) {
+            return;
+        }
+        delete this._emitDelay;
+    }
+    play() {
+        if (this._paused) {
+            return;
+        }
+        if (!(this.container.retina.reduceFactor &&
+            (this._lifeCount > 0 || this._immortal || !this.options.life.count) &&
+            (this._firstSpawn || this._currentSpawnDelay >= (this._spawnDelay ?? 0)))) {
+            return;
+        }
+        if (this._emitDelay === undefined) {
+            const delay = getRangeValue(this.options.rate.delay);
+            this._emitDelay = (1000 * delay) / this.container.retina.reduceFactor;
+        }
+        if (this._lifeCount > 0 || this._immortal) {
+            this._prepareToDie();
+        }
+    }
+    resize() {
+        const initialPosition = this._initialPosition;
+        this.position =
+            initialPosition && isPointInside(initialPosition, this.container.canvas.size, Vector.origin)
+                ? initialPosition
+                : this._calcPosition();
+    }
+    update(delta) {
+        if (this._paused) {
+            return;
+        }
+        if (this._firstSpawn) {
+            this._firstSpawn = false;
+            this._currentSpawnDelay = this._spawnDelay ?? 0;
+            this._currentEmitDelay = this._emitDelay ?? 0;
+        }
+        if (!this._startParticlesAdded) {
+            this._startParticlesAdded = true;
+            this._emitParticles(this.options.startCount);
+        }
+        if (this._duration !== undefined) {
+            this._currentDuration += delta.value;
+            if (this._currentDuration >= this._duration) {
+                this.pause();
+                if (this._spawnDelay !== undefined) {
+                    delete this._spawnDelay;
+                }
+                if (!this._immortal) {
+                    this._lifeCount--;
+                }
+                if (this._lifeCount > 0 || this._immortal) {
+                    this.position = this._calcPosition();
+                    this._spawnDelay = ((this.options.life.delay ?? 0) * 1000) / this.container.retina.reduceFactor;
+                }
+                else {
+                    this._destroy();
+                }
+                this._currentDuration -= this._duration;
+                delete this._duration;
+            }
+        }
+        if (this._spawnDelay !== undefined) {
+            this._currentSpawnDelay += delta.value;
+            if (this._currentSpawnDelay >= this._spawnDelay) {
+                this._engine.dispatchEvent("emitterPlay", {
+                    container: this.container,
+                });
+                this.play();
+                this._currentSpawnDelay -= this._currentSpawnDelay;
+                delete this._spawnDelay;
+            }
+        }
+        if (this._emitDelay !== undefined) {
+            this._currentEmitDelay += delta.value;
+            if (this._currentEmitDelay >= this._emitDelay) {
+                this._emit();
+                this._currentEmitDelay -= this._emitDelay;
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-emitters/esm/Emitters.js
+
+
+
+class Emitters {
+    constructor(engine, container) {
+        this.container = container;
+        this._engine = engine;
+        this.array = [];
+        this.emitters = [];
+        this.interactivityEmitters = {
+            random: {
+                count: 1,
+                enable: false,
+            },
+            value: [],
+        };
+        container.getEmitter = (idxOrName) => idxOrName === undefined || typeof idxOrName === "number"
+            ? this.array[idxOrName || 0]
+            : this.array.find((t) => t.name === idxOrName);
+        container.addEmitter = (options, position) => this.addEmitter(options, position);
+        container.removeEmitter = (idxOrName) => {
+            const emitter = container.getEmitter(idxOrName);
+            if (emitter) {
+                this.removeEmitter(emitter);
+            }
+        };
+        container.playEmitter = (idxOrName) => {
+            const emitter = container.getEmitter(idxOrName);
+            if (emitter) {
+                emitter.externalPlay();
+            }
+        };
+        container.pauseEmitter = (idxOrName) => {
+            const emitter = container.getEmitter(idxOrName);
+            if (emitter) {
+                emitter.externalPause();
+            }
+        };
+    }
+    addEmitter(options, position) {
+        const emitterOptions = new Emitter();
+        emitterOptions.load(options);
+        const emitter = new EmitterInstance(this._engine, this, this.container, emitterOptions, position);
+        this.array.push(emitter);
+        return emitter;
+    }
+    handleClickMode(mode) {
+        const emitterOptions = this.emitters, modeEmitters = this.interactivityEmitters;
+        if (mode !== "emitter") {
+            return;
+        }
+        let emittersModeOptions;
+        if (modeEmitters && modeEmitters.value instanceof Array) {
+            if (modeEmitters.value.length > 0 && modeEmitters.random.enable) {
+                emittersModeOptions = [];
+                const usedIndexes = [];
+                for (let i = 0; i < modeEmitters.random.count; i++) {
+                    const idx = arrayRandomIndex(modeEmitters.value);
+                    if (usedIndexes.includes(idx) && usedIndexes.length < modeEmitters.value.length) {
+                        i--;
+                        continue;
+                    }
+                    usedIndexes.push(idx);
+                    emittersModeOptions.push(itemFromArray(modeEmitters.value, idx));
+                }
+            }
+            else {
+                emittersModeOptions = modeEmitters.value;
+            }
+        }
+        else {
+            emittersModeOptions = modeEmitters?.value;
+        }
+        const emittersOptions = emittersModeOptions ?? emitterOptions, ePosition = this.container.interactivity.mouse.clickPosition;
+        executeOnSingleOrMultiple(emittersOptions, (emitter) => {
+            this.addEmitter(emitter, ePosition);
+        });
+    }
+    async init() {
+        this.emitters = this.container.actualOptions.emitters;
+        this.interactivityEmitters = this.container.actualOptions.interactivity.modes.emitters;
+        if (!this.emitters) {
+            return;
+        }
+        if (this.emitters instanceof Array) {
+            for (const emitterOptions of this.emitters) {
+                this.addEmitter(emitterOptions);
+            }
+        }
+        else {
+            this.addEmitter(this.emitters);
+        }
+    }
+    pause() {
+        for (const emitter of this.array) {
+            emitter.pause();
+        }
+    }
+    play() {
+        for (const emitter of this.array) {
+            emitter.play();
+        }
+    }
+    removeEmitter(emitter) {
+        const index = this.array.indexOf(emitter);
+        if (index >= 0) {
+            this.array.splice(index, 1);
+        }
+    }
+    resize() {
+        for (const emitter of this.array) {
+            emitter.resize();
+        }
+    }
+    stop() {
+        this.array = [];
+    }
+    update(delta) {
+        for (const emitter of this.array) {
+            emitter.update(delta);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-emitters/esm/ShapeManager.js
+const shapes = new Map();
+class ShapeManager {
+    constructor(engine) {
+        this._engine = engine;
+    }
+    addShape(name, drawer) {
+        if (!this.getShape(name)) {
+            shapes.set(name, drawer);
+        }
+    }
+    getShape(name) {
+        return shapes.get(name);
+    }
+    getSupportedShapes() {
+        return shapes.keys();
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-emitters/esm/Shapes/Square/SquareShape.js
+
+function randomSquareCoordinate(position, offset) {
+    return position + offset * (getRandom() - 0.5);
+}
+class SquareShape {
+    randomPosition(position, size, fill) {
+        if (fill) {
+            return {
+                x: randomSquareCoordinate(position.x, size.width),
+                y: randomSquareCoordinate(position.y, size.height),
+            };
+        }
+        else {
+            const halfW = size.width / 2, halfH = size.height / 2, side = Math.floor(getRandom() * 4), v = (getRandom() - 0.5) * 2;
+            switch (side) {
+                case 0:
+                    return {
+                        x: position.x + v * halfW,
+                        y: position.y - halfH,
+                    };
+                case 1:
+                    return {
+                        x: position.x - halfW,
+                        y: position.y + v * halfH,
+                    };
+                case 2:
+                    return {
+                        x: position.x + v * halfW,
+                        y: position.y + halfH,
+                    };
+                case 3:
+                default:
+                    return {
+                        x: position.x + halfW,
+                        y: position.y + v * halfH,
+                    };
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-plugin-emitters/esm/index.js
+
+
+
+
+
+
+class EmittersPlugin {
+    constructor(engine) {
+        this._engine = engine;
+        this.id = "emitters";
+    }
+    getPlugin(container) {
+        return new Emitters(this._engine, container);
+    }
+    loadOptions(options, source) {
+        if (!this.needsPlugin(options) && !this.needsPlugin(source)) {
+            return;
+        }
+        if (source?.emitters) {
+            options.emitters = executeOnSingleOrMultiple(source.emitters, (emitter) => {
+                const tmp = new Emitter();
+                tmp.load(emitter);
+                return tmp;
+            });
+        }
+        const interactivityEmitters = source?.interactivity?.modes?.emitters;
+        if (interactivityEmitters) {
+            if (interactivityEmitters instanceof Array) {
+                options.interactivity.modes.emitters = {
+                    random: {
+                        count: 1,
+                        enable: true,
+                    },
+                    value: interactivityEmitters.map((s) => {
+                        const tmp = new Emitter();
+                        tmp.load(s);
+                        return tmp;
+                    }),
+                };
+            }
+            else {
+                const emitterMode = interactivityEmitters;
+                if (emitterMode.value !== undefined) {
+                    if (emitterMode.value instanceof Array) {
+                        options.interactivity.modes.emitters = {
+                            random: {
+                                count: emitterMode.random.count ?? 1,
+                                enable: emitterMode.random.enable ?? false,
+                            },
+                            value: emitterMode.value.map((s) => {
+                                const tmp = new Emitter();
+                                tmp.load(s);
+                                return tmp;
+                            }),
+                        };
+                    }
+                    else {
+                        const tmp = new Emitter();
+                        tmp.load(emitterMode.value);
+                        options.interactivity.modes.emitters = {
+                            random: {
+                                count: emitterMode.random.count ?? 1,
+                                enable: emitterMode.random.enable ?? false,
+                            },
+                            value: tmp,
+                        };
+                    }
+                }
+                else {
+                    const emitterOptions = (options.interactivity.modes.emitters = {
+                        random: {
+                            count: 1,
+                            enable: false,
+                        },
+                        value: new Emitter(),
+                    });
+                    emitterOptions.value.load(interactivityEmitters);
+                }
+            }
+        }
+    }
+    needsPlugin(options) {
+        if (!options) {
+            return false;
+        }
+        const emitters = options.emitters;
+        return ((emitters instanceof Array && !!emitters.length) ||
+            emitters !== undefined ||
+            (!!options.interactivity?.events?.onClick?.mode &&
+                isInArray("emitter", options.interactivity.events.onClick.mode)));
+    }
+}
+async function loadEmittersPlugin(engine) {
+    if (!engine.emitterShapeManager) {
+        engine.emitterShapeManager = new ShapeManager(engine);
+    }
+    if (!engine.addEmitterShape) {
+        engine.addEmitterShape = (name, shape) => {
+            engine.emitterShapeManager?.addShape(name, shape);
+        };
+    }
+    const plugin = new EmittersPlugin(engine);
+    await engine.addPlugin(plugin);
+    engine.addEmitterShape("circle", new CircleShape());
+    engine.addEmitterShape("square", new SquareShape());
+}
+
+
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-trail/esm/Options/Classes/Trail.js
+
+class Trail {
+    constructor() {
+        this.delay = 1;
+        this.pauseOnStop = false;
+        this.quantity = 1;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.delay !== undefined) {
+            this.delay = data.delay;
+        }
+        if (data.quantity !== undefined) {
+            this.quantity = data.quantity;
+        }
+        if (data.particles !== undefined) {
+            this.particles = deepExtend({}, data.particles);
+        }
+        if (data.pauseOnStop !== undefined) {
+            this.pauseOnStop = data.pauseOnStop;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-trail/esm/TrailMaker.js
+
+
+class TrailMaker extends ExternalInteractorBase {
+    constructor(container) {
+        super(container);
+        this._delay = 0;
+    }
+    clear() {
+    }
+    init() {
+    }
+    async interact(delta) {
+        const container = this.container, { interactivity } = container;
+        if (!container.retina.reduceFactor) {
+            return;
+        }
+        const options = container.actualOptions, trailOptions = options.interactivity.modes.trail;
+        if (!trailOptions) {
+            return;
+        }
+        const optDelay = (trailOptions.delay * 1000) / this.container.retina.reduceFactor;
+        if (this._delay < optDelay) {
+            this._delay += delta.value;
+        }
+        if (this._delay < optDelay) {
+            return;
+        }
+        const canEmit = !(trailOptions.pauseOnStop &&
+            (interactivity.mouse.position === this._lastPosition ||
+                (interactivity.mouse.position?.x === this._lastPosition?.x &&
+                    interactivity.mouse.position?.y === this._lastPosition?.y)));
+        const mousePos = container.interactivity.mouse.position;
+        if (mousePos) {
+            this._lastPosition = { ...mousePos };
+        }
+        else {
+            delete this._lastPosition;
+        }
+        if (canEmit) {
+            container.particles.push(trailOptions.quantity, container.interactivity.mouse, trailOptions.particles);
+        }
+        this._delay -= optDelay;
+    }
+    isEnabled(particle) {
+        const container = this.container, options = container.actualOptions, mouse = container.interactivity.mouse, events = (particle?.interactivity ?? options.interactivity).events;
+        return ((mouse.clicking && mouse.inside && !!mouse.position && isInArray("trail", events.onClick.mode)) ||
+            (mouse.inside && !!mouse.position && isInArray("trail", events.onHover.mode)));
+    }
+    loadModeOptions(options, ...sources) {
+        if (!options.trail) {
+            options.trail = new Trail();
+        }
+        for (const source of sources) {
+            options.trail.load(source?.trail);
+        }
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-trail/esm/index.js
+
+async function loadExternalTrailInteraction(engine) {
+    await engine.addInteractor("externalTrail", (container) => new TrailMaker(container));
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-roll/esm/Utils.js
+
+function initParticle(particle) {
+    const rollOpt = particle.options.roll;
+    if (!rollOpt?.enable) {
+        particle.roll = {
+            enable: false,
+            horizontal: false,
+            vertical: false,
+            angle: 0,
+            speed: 0,
+        };
+        return;
+    }
+    particle.roll = {
+        enable: rollOpt.enable,
+        horizontal: rollOpt.mode === "horizontal" || rollOpt.mode === "both",
+        vertical: rollOpt.mode === "vertical" || rollOpt.mode === "both",
+        angle: getRandom() * Math.PI * 2,
+        speed: getRangeValue(rollOpt.speed) / 360,
+    };
+    if (rollOpt.backColor) {
+        particle.backColor = rangeColorToHsl(rollOpt.backColor);
+    }
+    else if (rollOpt.darken.enable && rollOpt.enlighten.enable) {
+        const alterType = getRandom() >= 0.5 ? "darken" : "enlighten";
+        particle.roll.alter = {
+            type: alterType,
+            value: getRangeValue(alterType === "darken" ? rollOpt.darken.value : rollOpt.enlighten.value),
+        };
+    }
+    else if (rollOpt.darken.enable) {
+        particle.roll.alter = {
+            type: "darken",
+            value: getRangeValue(rollOpt.darken.value),
+        };
+    }
+    else if (rollOpt.enlighten.enable) {
+        particle.roll.alter = {
+            type: "enlighten",
+            value: getRangeValue(rollOpt.enlighten.value),
+        };
+    }
+}
+function updateRoll(particle, delta) {
+    const roll = particle.options.roll, data = particle.roll;
+    if (!data || !roll?.enable) {
+        return;
+    }
+    const speed = data.speed * delta.factor, max = 2 * Math.PI;
+    data.angle += speed;
+    if (data.angle > max) {
+        data.angle -= max;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-roll/esm/Options/Classes/RollLight.js
+
+class RollLight {
+    constructor() {
+        this.enable = false;
+        this.value = 0;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.value !== undefined) {
+            this.value = NumberUtils_setRangeValue(data.value);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-roll/esm/Options/Classes/Roll.js
+
+
+class Roll {
+    constructor() {
+        this.darken = new RollLight();
+        this.enable = false;
+        this.enlighten = new RollLight();
+        this.mode = "vertical";
+        this.speed = 25;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.backColor !== undefined) {
+            this.backColor = OptionsColor.create(this.backColor, data.backColor);
+        }
+        this.darken.load(data.darken);
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        this.enlighten.load(data.enlighten);
+        if (data.mode !== undefined) {
+            this.mode = data.mode;
+        }
+        if (data.speed !== undefined) {
+            this.speed = NumberUtils_setRangeValue(data.speed);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-roll/esm/RollUpdater.js
+
+
+class RollUpdater {
+    getTransformValues(particle) {
+        const roll = particle.roll?.enable && particle.roll, rollHorizontal = roll && roll.horizontal, rollVertical = roll && roll.vertical;
+        return {
+            a: rollHorizontal ? Math.cos(roll.angle) : undefined,
+            d: rollVertical ? Math.sin(roll.angle) : undefined,
+        };
+    }
+    init(particle) {
+        initParticle(particle);
+    }
+    isEnabled(particle) {
+        const roll = particle.options.roll;
+        return !particle.destroyed && !particle.spawning && !!roll?.enable;
+    }
+    loadOptions(options, ...sources) {
+        if (!options.roll) {
+            options.roll = new Roll();
+        }
+        for (const source of sources) {
+            options.roll.load(source?.roll);
+        }
+    }
+    update(particle, delta) {
+        if (!this.isEnabled(particle)) {
+            return;
+        }
+        updateRoll(particle, delta);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-roll/esm/index.js
+
+async function loadRollUpdater(engine) {
+    await engine.addParticleUpdater("roll", () => new RollUpdater());
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-particles.js/esm/marcbruederlin/Particles.js
+
+class marcbruederlin_Particles_Particles {
+    static init(options) {
+        const particles = new marcbruederlin_Particles_Particles(), selector = options.selector;
+        if (!selector) {
+            throw new Error("No selector provided");
+        }
+        const el = document.querySelector(selector);
+        if (!el) {
+            throw new Error("No element found for selector");
+        }
+        tsParticles
+            .set(selector.replace(".", "").replace("!", ""), el, {
+            fullScreen: {
+                enable: false,
+            },
+            particles: {
+                color: {
+                    value: options.color ?? "!000000",
+                },
+                links: {
+                    color: "random",
+                    distance: options.minDistance ?? 120,
+                    enable: options.connectParticles ?? false,
+                },
+                move: {
+                    enable: true,
+                    speed: options.speed ?? 0.5,
+                },
+                number: {
+                    value: options.maxParticles ?? 100,
+                },
+                size: {
+                    value: { min: 1, max: options.sizeVariations ?? 3 },
+                },
+            },
+            responsive: options.responsive?.map((responsive) => ({
+                maxWidth: responsive.breakpoint,
+                options: {
+                    particles: {
+                        color: {
+                            value: responsive.options?.color,
+                        },
+                        links: {
+                            distance: responsive.options?.minDistance,
+                            enable: responsive.options?.connectParticles,
+                        },
+                        number: {
+                            value: options.maxParticles,
+                        },
+                        move: {
+                            enable: true,
+                            speed: responsive.options?.speed,
+                        },
+                        size: {
+                            value: responsive.options?.sizeVariations,
+                        },
+                    },
+                },
+            })),
+        })
+            .then((container) => {
+            particles._container = container;
+        });
+        return particles;
+    }
+    destroy() {
+        const container = this._container;
+        container && container.destroy();
+    }
+    pauseAnimation() {
+        const container = this._container;
+        container && container.pause();
+    }
+    resumeAnimation() {
+        const container = this._container;
+        container && container.play();
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-particles.js/esm/VincentGarreau/particles.js
+const initParticlesJS = (engine) => {
+    const particlesJS = (tagId, options) => {
+        return engine.load(tagId, options);
+    };
+    particlesJS.load = (tagId, pathConfigJson, callback) => {
+        engine
+            .loadJSON(tagId, pathConfigJson)
+            .then((container) => {
+            if (container) {
+                callback(container);
+            }
+        })
+            .catch(() => {
+            callback(undefined);
+        });
+    };
+    particlesJS.setOnClickHandler = (callback) => {
+        engine.setOnClickHandler(callback);
+    };
+    const pJSDom = engine.dom();
+    return { particlesJS, pJSDom };
+};
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-particles.js/esm/index.js
+
+
+const initPjs = (engine) => {
+    const { particlesJS, pJSDom } = initParticlesJS(engine);
+    window.particlesJS = particlesJS;
+    window.pJSDom = pJSDom;
+    window.Particles = marcbruederlin_Particles_Particles;
+    return { particlesJS, pJSDom, Particles: marcbruederlin_Particles_Particles };
+};
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-move-base/esm/Utils.js
+
+function applyDistance(particle) {
+    const initialPosition = particle.initialPosition, { dx, dy } = getDistances(initialPosition, particle.position), dxFixed = Math.abs(dx), dyFixed = Math.abs(dy), { maxDistance } = particle.retina, hDistance = maxDistance.horizontal, vDistance = maxDistance.vertical;
+    if (!hDistance && !vDistance) {
+        return;
+    }
+    if (((hDistance && dxFixed >= hDistance) || (vDistance && dyFixed >= vDistance)) && !particle.misplaced) {
+        particle.misplaced = (!!hDistance && dxFixed > hDistance) || (!!vDistance && dyFixed > vDistance);
+        if (hDistance) {
+            particle.velocity.x = particle.velocity.y / 2 - particle.velocity.x;
+        }
+        if (vDistance) {
+            particle.velocity.y = particle.velocity.x / 2 - particle.velocity.y;
+        }
+    }
+    else if ((!hDistance || dxFixed < hDistance) && (!vDistance || dyFixed < vDistance) && particle.misplaced) {
+        particle.misplaced = false;
+    }
+    else if (particle.misplaced) {
+        const pos = particle.position, vel = particle.velocity;
+        if (hDistance && ((pos.x < initialPosition.x && vel.x < 0) || (pos.x > initialPosition.x && vel.x > 0))) {
+            vel.x *= -getRandom();
+        }
+        if (vDistance && ((pos.y < initialPosition.y && vel.y < 0) || (pos.y > initialPosition.y && vel.y > 0))) {
+            vel.y *= -getRandom();
+        }
+    }
+}
+function move(particle, moveOptions, moveSpeed, maxSpeed, moveDrift, delta) {
+    applyPath(particle, delta);
+    const gravityOptions = particle.gravity, gravityFactor = gravityOptions?.enable && gravityOptions.inverse ? -1 : 1;
+    if (moveDrift && moveSpeed) {
+        particle.velocity.x += (moveDrift * delta.factor) / (60 * moveSpeed);
+    }
+    if (gravityOptions?.enable && moveSpeed) {
+        particle.velocity.y += (gravityFactor * (gravityOptions.acceleration * delta.factor)) / (60 * moveSpeed);
+    }
+    const decay = particle.moveDecay;
+    particle.velocity.multTo(decay);
+    const velocity = particle.velocity.mult(moveSpeed);
+    if (gravityOptions?.enable &&
+        maxSpeed > 0 &&
+        ((!gravityOptions.inverse && velocity.y >= 0 && velocity.y >= maxSpeed) ||
+            (gravityOptions.inverse && velocity.y <= 0 && velocity.y <= -maxSpeed))) {
+        velocity.y = gravityFactor * maxSpeed;
+        if (moveSpeed) {
+            particle.velocity.y = velocity.y / moveSpeed;
+        }
+    }
+    const zIndexOptions = particle.options.zIndex, zVelocityFactor = (1 - particle.zIndexFactor) ** zIndexOptions.velocityRate;
+    velocity.multTo(zVelocityFactor);
+    const { position } = particle;
+    position.addTo(velocity);
+    if (moveOptions.vibrate) {
+        position.x += Math.sin(position.x * Math.cos(position.y));
+        position.y += Math.cos(position.y * Math.sin(position.x));
+    }
+}
+function spin(particle, moveSpeed) {
+    const container = particle.container;
+    if (!particle.spin) {
+        return;
+    }
+    const updateFunc = {
+        x: particle.spin.direction === "clockwise" ? Math.cos : Math.sin,
+        y: particle.spin.direction === "clockwise" ? Math.sin : Math.cos,
+    };
+    particle.position.x = particle.spin.center.x + particle.spin.radius * updateFunc.x(particle.spin.angle);
+    particle.position.y = particle.spin.center.y + particle.spin.radius * updateFunc.y(particle.spin.angle);
+    particle.spin.radius += particle.spin.acceleration;
+    const maxCanvasSize = Math.max(container.canvas.size.width, container.canvas.size.height);
+    if (particle.spin.radius > maxCanvasSize / 2) {
+        particle.spin.radius = maxCanvasSize / 2;
+        particle.spin.acceleration *= -1;
+    }
+    else if (particle.spin.radius < 0) {
+        particle.spin.radius = 0;
+        particle.spin.acceleration *= -1;
+    }
+    particle.spin.angle += (moveSpeed / 100) * (1 - particle.spin.radius / maxCanvasSize);
+}
+function applyPath(particle, delta) {
+    const particlesOptions = particle.options, pathOptions = particlesOptions.move.path, pathEnabled = pathOptions.enable;
+    if (!pathEnabled) {
+        return;
+    }
+    if (particle.lastPathTime <= particle.pathDelay) {
+        particle.lastPathTime += delta.value;
+        return;
+    }
+    const path = particle.pathGenerator?.generate(particle, delta);
+    if (path) {
+        particle.velocity.addTo(path);
+    }
+    if (pathOptions.clamp) {
+        particle.velocity.x = clamp(particle.velocity.x, -1, 1);
+        particle.velocity.y = clamp(particle.velocity.y, -1, 1);
+    }
+    particle.lastPathTime -= particle.pathDelay;
+}
+function getProximitySpeedFactor(particle) {
+    return particle.slow.inRange ? particle.slow.factor : 1;
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-move-base/esm/BaseMover.js
+
+
+const diffFactor = 2;
+class BaseMover {
+    constructor() {
+        this._initSpin = (particle) => {
+            const container = particle.container, options = particle.options, spinOptions = options.move.spin;
+            if (!spinOptions.enable) {
+                return;
+            }
+            const spinPos = spinOptions.position ?? { x: 50, y: 50 }, spinCenter = {
+                x: (spinPos.x / 100) * container.canvas.size.width,
+                y: (spinPos.y / 100) * container.canvas.size.height,
+            }, pos = particle.getPosition(), distance = getDistance(pos, spinCenter), spinAcceleration = getRangeValue(spinOptions.acceleration);
+            particle.retina.spinAcceleration = spinAcceleration * container.retina.pixelRatio;
+            particle.spin = {
+                center: spinCenter,
+                direction: particle.velocity.x >= 0 ? "clockwise" : "counter-clockwise",
+                angle: particle.velocity.angle,
+                radius: distance,
+                acceleration: particle.retina.spinAcceleration,
+            };
+        };
+    }
+    init(particle) {
+        const options = particle.options, gravityOptions = options.move.gravity;
+        particle.gravity = {
+            enable: gravityOptions.enable,
+            acceleration: getRangeValue(gravityOptions.acceleration),
+            inverse: gravityOptions.inverse,
+        };
+        this._initSpin(particle);
+    }
+    isEnabled(particle) {
+        return !particle.destroyed && particle.options.move.enable;
+    }
+    move(particle, delta) {
+        const particleOptions = particle.options, moveOptions = particleOptions.move;
+        if (!moveOptions.enable) {
+            return;
+        }
+        const container = particle.container, pxRatio = container.retina.pixelRatio, slowFactor = getProximitySpeedFactor(particle), baseSpeed = (particle.retina.moveSpeed ??= getRangeValue(moveOptions.speed) * pxRatio) *
+            container.retina.reduceFactor, moveDrift = (particle.retina.moveDrift ??= getRangeValue(particle.options.move.drift) * pxRatio), maxSize = getRangeMax(particleOptions.size.value) * pxRatio, sizeFactor = moveOptions.size ? particle.getRadius() / maxSize : 1, moveSpeed = (baseSpeed * sizeFactor * slowFactor * (delta.factor || 1)) / diffFactor, maxSpeed = particle.retina.maxSpeed ?? container.retina.maxSpeed;
+        if (moveOptions.spin.enable) {
+            spin(particle, moveSpeed);
+        }
+        else {
+            move(particle, moveOptions, moveSpeed, maxSpeed, moveDrift, delta);
+        }
+        applyDistance(particle);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-move-base/esm/index.js
+
+async function loadBaseMover(engine) {
+    engine.addMover("base", () => new BaseMover());
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-circle/esm/CircleDrawer.js
+class CircleDrawer {
+    draw(context, particle, radius) {
+        if (!particle.circleRange) {
+            particle.circleRange = { min: 0, max: Math.PI * 2 };
+        }
+        const circleRange = particle.circleRange;
+        context.arc(0, 0, radius, circleRange.min, circleRange.max, false);
+    }
+    getSidesCount() {
+        return 12;
+    }
+    particleInit(container, particle) {
+        const shapeData = particle.shapeData, angle = shapeData?.angle ?? {
+            max: 360,
+            min: 0,
+        };
+        particle.circleRange =
+            typeof angle !== "object"
+                ? {
+                    min: 0,
+                    max: (angle * Math.PI) / 180,
+                }
+                : { min: (angle.min * Math.PI) / 180, max: (angle.max * Math.PI) / 180 };
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-circle/esm/index.js
+
+async function loadCircleShape(engine) {
+    await engine.addShape("circle", new CircleDrawer());
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-color/esm/Utils.js
+
+function updateColorValue(delta, colorValue, valueAnimation, max, decrease) {
+    if (!colorValue ||
+        !valueAnimation.enable ||
+        ((colorValue.maxLoops ?? 0) > 0 && (colorValue.loops ?? 0) > (colorValue.maxLoops ?? 0))) {
+        return;
+    }
+    if (!colorValue.time) {
+        colorValue.time = 0;
+    }
+    if ((colorValue.delayTime ?? 0) > 0 && colorValue.time < (colorValue.delayTime ?? 0)) {
+        colorValue.time += delta.value;
+    }
+    if ((colorValue.delayTime ?? 0) > 0 && colorValue.time < (colorValue.delayTime ?? 0)) {
+        return;
+    }
+    const offset = randomInRange(valueAnimation.offset), velocity = (colorValue.velocity ?? 0) * delta.factor + offset * 3.6, decay = colorValue.decay ?? 1;
+    if (!decrease || colorValue.status === "increasing") {
+        colorValue.value += velocity;
+        if (colorValue.value > max) {
+            if (!colorValue.loops) {
+                colorValue.loops = 0;
+            }
+            colorValue.loops++;
+            if (decrease) {
+                colorValue.status = "decreasing";
+                colorValue.value -= colorValue.value % max;
+            }
+        }
+    }
+    else {
+        colorValue.value -= velocity;
+        if (colorValue.value < 0) {
+            if (!colorValue.loops) {
+                colorValue.loops = 0;
+            }
+            colorValue.loops++;
+            colorValue.status = "increasing";
+            colorValue.value += colorValue.value;
+        }
+    }
+    if (colorValue.velocity && decay !== 1) {
+        colorValue.velocity *= decay;
+    }
+    if (colorValue.value > max) {
+        colorValue.value %= max;
+    }
+}
+function updateColor(particle, delta) {
+    const { h: hAnimation, s: sAnimation, l: lAnimation } = particle.options.color.animation, { color } = particle;
+    if (!color) {
+        return;
+    }
+    const { h, s, l } = color;
+    if (h) {
+        updateColorValue(delta, h, hAnimation, 360, false);
+    }
+    if (s) {
+        updateColorValue(delta, s, sAnimation, 100, true);
+    }
+    if (l) {
+        updateColorValue(delta, l, lAnimation, 100, true);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-color/esm/ColorUpdater.js
+
+
+class ColorUpdater {
+    constructor(container) {
+        this.container = container;
+    }
+    init(particle) {
+        const hslColor = rangeColorToHsl(particle.options.color, particle.id, particle.options.reduceDuplicates);
+        if (hslColor) {
+            particle.color = getHslAnimationFromHsl(hslColor, particle.options.color.animation, this.container.retina.reduceFactor);
+        }
+    }
+    isEnabled(particle) {
+        const { h: hAnimation, s: sAnimation, l: lAnimation } = particle.options.color.animation, { color } = particle;
+        return (!particle.destroyed &&
+            !particle.spawning &&
+            ((color?.h.value !== undefined && hAnimation.enable) ||
+                (color?.s.value !== undefined && sAnimation.enable) ||
+                (color?.l.value !== undefined && lAnimation.enable)));
+    }
+    update(particle, delta) {
+        updateColor(particle, delta);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-color/esm/index.js
+
+async function loadColorUpdater(engine) {
+    await engine.addParticleUpdater("color", (container) => new ColorUpdater(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-attract/esm/Options/Classes/Attract.js
+class Attract {
+    constructor() {
+        this.distance = 200;
+        this.duration = 0.4;
+        this.easing = "ease-out-quad";
+        this.factor = 1;
+        this.maxSpeed = 50;
+        this.speed = 1;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.distance !== undefined) {
+            this.distance = data.distance;
+        }
+        if (data.duration !== undefined) {
+            this.duration = data.duration;
+        }
+        if (data.easing !== undefined) {
+            this.easing = data.easing;
+        }
+        if (data.factor !== undefined) {
+            this.factor = data.factor;
+        }
+        if (data.maxSpeed !== undefined) {
+            this.maxSpeed = data.maxSpeed;
+        }
+        if (data.speed !== undefined) {
+            this.speed = data.speed;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-attract/esm/Attractor.js
+
+
+class Attractor extends ExternalInteractorBase {
+    constructor(engine, container) {
+        super(container);
+        this._clickAttract = () => {
+            const container = this.container;
+            if (!container.attract) {
+                container.attract = { particles: [] };
+            }
+            const { attract } = container;
+            if (!attract.finish) {
+                if (!attract.count) {
+                    attract.count = 0;
+                }
+                attract.count++;
+                if (attract.count === container.particles.count) {
+                    attract.finish = true;
+                }
+            }
+            if (attract.clicking) {
+                const mousePos = container.interactivity.mouse.clickPosition, attractRadius = container.retina.attractModeDistance;
+                if (!attractRadius || attractRadius < 0 || !mousePos) {
+                    return;
+                }
+                this._processAttract(mousePos, attractRadius, new Circle(mousePos.x, mousePos.y, attractRadius));
+            }
+            else if (attract.clicking === false) {
+                attract.particles = [];
+            }
+            return;
+        };
+        this._hoverAttract = () => {
+            const container = this.container, mousePos = container.interactivity.mouse.position, attractRadius = container.retina.attractModeDistance;
+            if (!attractRadius || attractRadius < 0 || !mousePos) {
+                return;
+            }
+            this._processAttract(mousePos, attractRadius, new Circle(mousePos.x, mousePos.y, attractRadius));
+        };
+        this._processAttract = (position, attractRadius, area) => {
+            const container = this.container, attractOptions = container.actualOptions.interactivity.modes.attract;
+            if (!attractOptions) {
+                return;
+            }
+            const query = container.particles.quadTree.query(area, (p) => this.isEnabled(p));
+            for (const particle of query) {
+                const { dx, dy, distance } = getDistances(particle.position, position);
+                const velocity = attractOptions.speed * attractOptions.factor;
+                const attractFactor = clamp(getEasing(attractOptions.easing)(1 - distance / attractRadius) * velocity, 0, attractOptions.maxSpeed);
+                const normVec = Vector.create(distance === 0 ? velocity : (dx / distance) * attractFactor, distance === 0 ? velocity : (dy / distance) * attractFactor);
+                particle.position.subFrom(normVec);
+            }
+        };
+        this._engine = engine;
+        if (!container.attract) {
+            container.attract = { particles: [] };
+        }
+        this.handleClickMode = (mode) => {
+            const options = this.container.actualOptions, attract = options.interactivity.modes.attract;
+            if (!attract || mode !== "attract") {
+                return;
+            }
+            if (!container.attract) {
+                container.attract = { particles: [] };
+            }
+            container.attract.clicking = true;
+            container.attract.count = 0;
+            for (const particle of container.attract.particles) {
+                if (!this.isEnabled(particle)) {
+                    continue;
+                }
+                particle.velocity.setTo(particle.initialVelocity);
+            }
+            container.attract.particles = [];
+            container.attract.finish = false;
+            setTimeout(() => {
+                if (container.destroyed) {
+                    return;
+                }
+                if (!container.attract) {
+                    container.attract = { particles: [] };
+                }
+                container.attract.clicking = false;
+            }, attract.duration * 1000);
+        };
+    }
+    clear() {
+    }
+    init() {
+        const container = this.container, attract = container.actualOptions.interactivity.modes.attract;
+        if (!attract) {
+            return;
+        }
+        container.retina.attractModeDistance = attract.distance * container.retina.pixelRatio;
+    }
+    async interact() {
+        const container = this.container, options = container.actualOptions, mouseMoveStatus = container.interactivity.status === mouseMoveEvent, events = options.interactivity.events, hoverEnabled = events.onHover.enable, hoverMode = events.onHover.mode, clickEnabled = events.onClick.enable, clickMode = events.onClick.mode;
+        if (mouseMoveStatus && hoverEnabled && isInArray("attract", hoverMode)) {
+            this._hoverAttract();
+        }
+        else if (clickEnabled && isInArray("attract", clickMode)) {
+            this._clickAttract();
+        }
+    }
+    isEnabled(particle) {
+        const container = this.container, options = container.actualOptions, mouse = container.interactivity.mouse, events = (particle?.interactivity ?? options.interactivity).events;
+        if ((!mouse.position || !events.onHover.enable) && (!mouse.clickPosition || !events.onClick.enable)) {
+            return false;
+        }
+        const hoverMode = events.onHover.mode, clickMode = events.onClick.mode;
+        return isInArray("attract", hoverMode) || isInArray("attract", clickMode);
+    }
+    loadModeOptions(options, ...sources) {
+        if (!options.attract) {
+            options.attract = new Attract();
+        }
+        for (const source of sources) {
+            options.attract.load(source?.attract);
+        }
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-attract/esm/index.js
+
+async function loadExternalAttractInteraction(engine) {
+    await engine.addInteractor("externalAttract", (container) => new Attractor(engine, container));
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-bounce/esm/Options/Classes/Bounce.js
+class Bounce {
+    constructor() {
+        this.distance = 200;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.distance !== undefined) {
+            this.distance = data.distance;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-bounce/esm/Bouncer.js
+
+
+class Bouncer extends ExternalInteractorBase {
+    constructor(container) {
+        super(container);
+        this._processBounce = (position, radius, area) => {
+            const query = this.container.particles.quadTree.query(area, (p) => this.isEnabled(p));
+            for (const particle of query) {
+                if (area instanceof Circle) {
+                    circleBounce(circleBounceDataFromParticle(particle), {
+                        position,
+                        radius,
+                        mass: (radius ** 2 * Math.PI) / 2,
+                        velocity: Vector.origin,
+                        factor: Vector.origin,
+                    });
+                }
+                else if (area instanceof Rectangle) {
+                    rectBounce(particle, calculateBounds(position, radius));
+                }
+            }
+        };
+        this._processMouseBounce = () => {
+            const container = this.container, pxRatio = container.retina.pixelRatio, tolerance = 10 * pxRatio, mousePos = container.interactivity.mouse.position, radius = container.retina.bounceModeDistance;
+            if (!radius || radius < 0 || !mousePos) {
+                return;
+            }
+            this._processBounce(mousePos, radius, new Circle(mousePos.x, mousePos.y, radius + tolerance));
+        };
+        this._singleSelectorBounce = (selector, div) => {
+            const container = this.container, query = document.querySelectorAll(selector);
+            if (!query.length) {
+                return;
+            }
+            query.forEach((item) => {
+                const elem = item, pxRatio = container.retina.pixelRatio, pos = {
+                    x: (elem.offsetLeft + elem.offsetWidth / 2) * pxRatio,
+                    y: (elem.offsetTop + elem.offsetHeight / 2) * pxRatio,
+                }, radius = (elem.offsetWidth / 2) * pxRatio, tolerance = 10 * pxRatio, area = div.type === "circle"
+                    ? new Circle(pos.x, pos.y, radius + tolerance)
+                    : new Rectangle(elem.offsetLeft * pxRatio - tolerance, elem.offsetTop * pxRatio - tolerance, elem.offsetWidth * pxRatio + tolerance * 2, elem.offsetHeight * pxRatio + tolerance * 2);
+                this._processBounce(pos, radius, area);
+            });
+        };
+    }
+    clear() {
+    }
+    init() {
+        const container = this.container, bounce = container.actualOptions.interactivity.modes.bounce;
+        if (!bounce) {
+            return;
+        }
+        container.retina.bounceModeDistance = bounce.distance * container.retina.pixelRatio;
+    }
+    async interact() {
+        const container = this.container, options = container.actualOptions, events = options.interactivity.events, mouseMoveStatus = container.interactivity.status === mouseMoveEvent, hoverEnabled = events.onHover.enable, hoverMode = events.onHover.mode, divs = events.onDiv;
+        if (mouseMoveStatus && hoverEnabled && isInArray("bounce", hoverMode)) {
+            this._processMouseBounce();
+        }
+        else {
+            divModeExecute("bounce", divs, (selector, div) => this._singleSelectorBounce(selector, div));
+        }
+    }
+    isEnabled(particle) {
+        const container = this.container, options = container.actualOptions, mouse = container.interactivity.mouse, events = (particle?.interactivity ?? options.interactivity).events, divs = events.onDiv;
+        return ((mouse.position && events.onHover.enable && isInArray("bounce", events.onHover.mode)) ||
+            isDivModeEnabled("bounce", divs));
+    }
+    loadModeOptions(options, ...sources) {
+        if (!options.bounce) {
+            options.bounce = new Bounce();
+        }
+        for (const source of sources) {
+            options.bounce.load(source?.bounce);
+        }
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-bounce/esm/index.js
+
+async function loadExternalBounceInteraction(engine) {
+    await engine.addInteractor("externalBounce", (container) => new Bouncer(container));
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-bubble/esm/Options/Classes/BubbleBase.js
+
+class BubbleBase {
+    constructor() {
+        this.distance = 200;
+        this.duration = 0.4;
+        this.mix = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.distance !== undefined) {
+            this.distance = data.distance;
+        }
+        if (data.duration !== undefined) {
+            this.duration = data.duration;
+        }
+        if (data.mix !== undefined) {
+            this.mix = data.mix;
+        }
+        if (data.opacity !== undefined) {
+            this.opacity = data.opacity;
+        }
+        if (data.color !== undefined) {
+            const sourceColor = this.color instanceof Array ? undefined : this.color;
+            this.color = executeOnSingleOrMultiple(data.color, (color) => {
+                return OptionsColor.create(sourceColor, color);
+            });
+        }
+        if (data.size !== undefined) {
+            this.size = data.size;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-bubble/esm/Options/Classes/BubbleDiv.js
+
+
+class BubbleDiv extends BubbleBase {
+    constructor() {
+        super();
+        this.selectors = [];
+    }
+    get ids() {
+        return executeOnSingleOrMultiple(this.selectors, (t) => t.replace("#", ""));
+    }
+    set ids(value) {
+        this.selectors = executeOnSingleOrMultiple(value, (t) => `#${t}`);
+    }
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        if (data.ids !== undefined) {
+            this.ids = data.ids;
+        }
+        if (data.selectors !== undefined) {
+            this.selectors = data.selectors;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-bubble/esm/Options/Classes/Bubble.js
+
+
+
+class Bubble extends BubbleBase {
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        this.divs = executeOnSingleOrMultiple(data.divs, (div) => {
+            const tmp = new BubbleDiv();
+            tmp.load(div);
+            return tmp;
+        });
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-bubble/esm/Utils.js
+
+function calculateBubbleValue(particleValue, modeValue, optionsValue, ratio) {
+    if (modeValue >= optionsValue) {
+        const value = particleValue + (modeValue - optionsValue) * ratio;
+        return clamp(value, particleValue, modeValue);
+    }
+    else if (modeValue < optionsValue) {
+        const value = particleValue - (optionsValue - modeValue) * ratio;
+        return clamp(value, modeValue, particleValue);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-bubble/esm/Bubbler.js
+
+
+
+class Bubbler extends ExternalInteractorBase {
+    constructor(container) {
+        super(container);
+        this._clickBubble = () => {
+            const container = this.container, options = container.actualOptions, mouseClickPos = container.interactivity.mouse.clickPosition, bubbleOptions = options.interactivity.modes.bubble;
+            if (!bubbleOptions || !mouseClickPos) {
+                return;
+            }
+            if (!container.bubble) {
+                container.bubble = {};
+            }
+            const distance = container.retina.bubbleModeDistance;
+            if (!distance || distance < 0) {
+                return;
+            }
+            const query = container.particles.quadTree.queryCircle(mouseClickPos, distance, (p) => this.isEnabled(p)), { bubble } = container;
+            for (const particle of query) {
+                if (!bubble.clicking) {
+                    continue;
+                }
+                particle.bubble.inRange = !bubble.durationEnd;
+                const pos = particle.getPosition(), distMouse = getDistance(pos, mouseClickPos), timeSpent = (new Date().getTime() - (container.interactivity.mouse.clickTime || 0)) / 1000;
+                if (timeSpent > bubbleOptions.duration) {
+                    bubble.durationEnd = true;
+                }
+                if (timeSpent > bubbleOptions.duration * 2) {
+                    bubble.clicking = false;
+                    bubble.durationEnd = false;
+                }
+                const sizeData = {
+                    bubbleObj: {
+                        optValue: container.retina.bubbleModeSize,
+                        value: particle.bubble.radius,
+                    },
+                    particlesObj: {
+                        optValue: getRangeMax(particle.options.size.value) * container.retina.pixelRatio,
+                        value: particle.size.value,
+                    },
+                    type: "size",
+                };
+                this._process(particle, distMouse, timeSpent, sizeData);
+                const opacityData = {
+                    bubbleObj: {
+                        optValue: bubbleOptions.opacity,
+                        value: particle.bubble.opacity,
+                    },
+                    particlesObj: {
+                        optValue: getRangeMax(particle.options.opacity.value),
+                        value: particle.opacity?.value ?? 1,
+                    },
+                    type: "opacity",
+                };
+                this._process(particle, distMouse, timeSpent, opacityData);
+                if (!bubble.durationEnd && distMouse <= distance) {
+                    this._hoverBubbleColor(particle, distMouse);
+                }
+                else {
+                    delete particle.bubble.color;
+                }
+            }
+        };
+        this._hoverBubble = () => {
+            const container = this.container, mousePos = container.interactivity.mouse.position, distance = container.retina.bubbleModeDistance;
+            if (!distance || distance < 0 || mousePos === undefined) {
+                return;
+            }
+            const query = container.particles.quadTree.queryCircle(mousePos, distance, (p) => this.isEnabled(p));
+            for (const particle of query) {
+                particle.bubble.inRange = true;
+                const pos = particle.getPosition(), pointDistance = getDistance(pos, mousePos), ratio = 1 - pointDistance / distance;
+                if (pointDistance <= distance) {
+                    if (ratio >= 0 && container.interactivity.status === mouseMoveEvent) {
+                        this._hoverBubbleSize(particle, ratio);
+                        this._hoverBubbleOpacity(particle, ratio);
+                        this._hoverBubbleColor(particle, ratio);
+                    }
+                }
+                else {
+                    this.reset(particle);
+                }
+                if (container.interactivity.status === mouseLeaveEvent) {
+                    this.reset(particle);
+                }
+            }
+        };
+        this._hoverBubbleColor = (particle, ratio, divBubble) => {
+            const options = this.container.actualOptions, bubbleOptions = divBubble ?? options.interactivity.modes.bubble;
+            if (!bubbleOptions) {
+                return;
+            }
+            if (!particle.bubble.finalColor) {
+                const modeColor = bubbleOptions.color;
+                if (!modeColor) {
+                    return;
+                }
+                const bubbleColor = itemFromSingleOrMultiple(modeColor);
+                particle.bubble.finalColor = rangeColorToHsl(bubbleColor);
+            }
+            if (!particle.bubble.finalColor) {
+                return;
+            }
+            if (bubbleOptions.mix) {
+                particle.bubble.color = undefined;
+                const pColor = particle.getFillColor();
+                particle.bubble.color = pColor
+                    ? rgbToHsl(colorMix(pColor, particle.bubble.finalColor, 1 - ratio, ratio))
+                    : particle.bubble.finalColor;
+            }
+            else {
+                particle.bubble.color = particle.bubble.finalColor;
+            }
+        };
+        this._hoverBubbleOpacity = (particle, ratio, divBubble) => {
+            const container = this.container, options = container.actualOptions, modeOpacity = divBubble?.opacity ?? options.interactivity.modes.bubble?.opacity;
+            if (!modeOpacity) {
+                return;
+            }
+            const optOpacity = particle.options.opacity.value, pOpacity = particle.opacity?.value ?? 1, opacity = calculateBubbleValue(pOpacity, modeOpacity, getRangeMax(optOpacity), ratio);
+            if (opacity !== undefined) {
+                particle.bubble.opacity = opacity;
+            }
+        };
+        this._hoverBubbleSize = (particle, ratio, divBubble) => {
+            const container = this.container, modeSize = divBubble?.size ? divBubble.size * container.retina.pixelRatio : container.retina.bubbleModeSize;
+            if (modeSize === undefined) {
+                return;
+            }
+            const optSize = getRangeMax(particle.options.size.value) * container.retina.pixelRatio, pSize = particle.size.value, size = calculateBubbleValue(pSize, modeSize, optSize, ratio);
+            if (size !== undefined) {
+                particle.bubble.radius = size;
+            }
+        };
+        this._process = (particle, distMouse, timeSpent, data) => {
+            const container = this.container, bubbleParam = data.bubbleObj.optValue, options = container.actualOptions, bubbleOptions = options.interactivity.modes.bubble;
+            if (!bubbleOptions || bubbleParam === undefined) {
+                return;
+            }
+            const bubbleDuration = bubbleOptions.duration, bubbleDistance = container.retina.bubbleModeDistance, particlesParam = data.particlesObj.optValue, pObjBubble = data.bubbleObj.value, pObj = data.particlesObj.value || 0, type = data.type;
+            if (!bubbleDistance || bubbleDistance < 0 || bubbleParam === particlesParam) {
+                return;
+            }
+            if (!container.bubble) {
+                container.bubble = {};
+            }
+            if (container.bubble.durationEnd) {
+                if (pObjBubble) {
+                    if (type === "size") {
+                        delete particle.bubble.radius;
+                    }
+                    if (type === "opacity") {
+                        delete particle.bubble.opacity;
+                    }
+                }
+            }
+            else {
+                if (distMouse <= bubbleDistance) {
+                    const obj = pObjBubble ?? pObj;
+                    if (obj !== bubbleParam) {
+                        const value = pObj - (timeSpent * (pObj - bubbleParam)) / bubbleDuration;
+                        if (type === "size") {
+                            particle.bubble.radius = value;
+                        }
+                        if (type === "opacity") {
+                            particle.bubble.opacity = value;
+                        }
+                    }
+                }
+                else {
+                    if (type === "size") {
+                        delete particle.bubble.radius;
+                    }
+                    if (type === "opacity") {
+                        delete particle.bubble.opacity;
+                    }
+                }
+            }
+        };
+        this._singleSelectorHover = (delta, selector, div) => {
+            const container = this.container, selectors = document.querySelectorAll(selector), bubble = container.actualOptions.interactivity.modes.bubble;
+            if (!bubble || !selectors.length) {
+                return;
+            }
+            selectors.forEach((item) => {
+                const elem = item, pxRatio = container.retina.pixelRatio, pos = {
+                    x: (elem.offsetLeft + elem.offsetWidth / 2) * pxRatio,
+                    y: (elem.offsetTop + elem.offsetHeight / 2) * pxRatio,
+                }, repulseRadius = (elem.offsetWidth / 2) * pxRatio, area = div.type === "circle"
+                    ? new Circle(pos.x, pos.y, repulseRadius)
+                    : new Rectangle(elem.offsetLeft * pxRatio, elem.offsetTop * pxRatio, elem.offsetWidth * pxRatio, elem.offsetHeight * pxRatio), query = container.particles.quadTree.query(area, (p) => this.isEnabled(p));
+                for (const particle of query) {
+                    if (!area.contains(particle.getPosition())) {
+                        continue;
+                    }
+                    particle.bubble.inRange = true;
+                    const divs = bubble.divs, divBubble = divMode(divs, elem);
+                    if (!particle.bubble.div || particle.bubble.div !== elem) {
+                        this.clear(particle, delta, true);
+                        particle.bubble.div = elem;
+                    }
+                    this._hoverBubbleSize(particle, 1, divBubble);
+                    this._hoverBubbleOpacity(particle, 1, divBubble);
+                    this._hoverBubbleColor(particle, 1, divBubble);
+                }
+            });
+        };
+        if (!container.bubble) {
+            container.bubble = {};
+        }
+        this.handleClickMode = (mode) => {
+            if (mode !== "bubble") {
+                return;
+            }
+            if (!container.bubble) {
+                container.bubble = {};
+            }
+            container.bubble.clicking = true;
+        };
+    }
+    clear(particle, delta, force) {
+        if (particle.bubble.inRange && !force) {
+            return;
+        }
+        delete particle.bubble.div;
+        delete particle.bubble.opacity;
+        delete particle.bubble.radius;
+        delete particle.bubble.color;
+    }
+    init() {
+        const container = this.container, bubble = container.actualOptions.interactivity.modes.bubble;
+        if (!bubble) {
+            return;
+        }
+        container.retina.bubbleModeDistance = bubble.distance * container.retina.pixelRatio;
+        if (bubble.size !== undefined) {
+            container.retina.bubbleModeSize = bubble.size * container.retina.pixelRatio;
+        }
+    }
+    async interact(delta) {
+        const options = this.container.actualOptions, events = options.interactivity.events, onHover = events.onHover, onClick = events.onClick, hoverEnabled = onHover.enable, hoverMode = onHover.mode, clickEnabled = onClick.enable, clickMode = onClick.mode, divs = events.onDiv;
+        if (hoverEnabled && isInArray("bubble", hoverMode)) {
+            this._hoverBubble();
+        }
+        else if (clickEnabled && isInArray("bubble", clickMode)) {
+            this._clickBubble();
+        }
+        else {
+            divModeExecute("bubble", divs, (selector, div) => this._singleSelectorHover(delta, selector, div));
+        }
+    }
+    isEnabled(particle) {
+        const container = this.container, options = container.actualOptions, mouse = container.interactivity.mouse, events = (particle?.interactivity ?? options.interactivity).events, { onClick, onDiv, onHover } = events, divBubble = isDivModeEnabled("bubble", onDiv);
+        if (!(divBubble || (onHover.enable && mouse.position) || (onClick.enable && mouse.clickPosition))) {
+            return false;
+        }
+        return isInArray("bubble", onHover.mode) || isInArray("bubble", onClick.mode) || divBubble;
+    }
+    loadModeOptions(options, ...sources) {
+        if (!options.bubble) {
+            options.bubble = new Bubble();
+        }
+        for (const source of sources) {
+            options.bubble.load(source?.bubble);
+        }
+    }
+    reset(particle) {
+        particle.bubble.inRange = false;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-bubble/esm/index.js
+
+async function loadExternalBubbleInteraction(engine) {
+    await engine.addInteractor("externalBubble", (container) => new Bubbler(container));
+}
+
+
+
+
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-connect/esm/Options/Classes/ConnectLinks.js
+class ConnectLinks {
+    constructor() {
+        this.opacity = 0.5;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.opacity !== undefined) {
+            this.opacity = data.opacity;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-connect/esm/Options/Classes/Connect.js
+
+class Connect {
+    constructor() {
+        this.distance = 80;
+        this.links = new ConnectLinks();
+        this.radius = 60;
+    }
+    get lineLinked() {
+        return this.links;
+    }
+    set lineLinked(value) {
+        this.links = value;
+    }
+    get line_linked() {
+        return this.links;
+    }
+    set line_linked(value) {
+        this.links = value;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.distance !== undefined) {
+            this.distance = data.distance;
+        }
+        this.links.load(data.links ?? data.lineLinked ?? data.line_linked);
+        if (data.radius !== undefined) {
+            this.radius = data.radius;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-connect/esm/Utils.js
+
+function gradient(context, p1, p2, opacity) {
+    const gradStop = Math.floor(p2.getRadius() / p1.getRadius()), color1 = p1.getFillColor(), color2 = p2.getFillColor();
+    if (!color1 || !color2) {
+        return;
+    }
+    const sourcePos = p1.getPosition(), destPos = p2.getPosition(), midRgb = colorMix(color1, color2, p1.getRadius(), p2.getRadius()), grad = context.createLinearGradient(sourcePos.x, sourcePos.y, destPos.x, destPos.y);
+    grad.addColorStop(0, getStyleFromHsl(color1, opacity));
+    grad.addColorStop(gradStop > 1 ? 1 : gradStop, getStyleFromRgb(midRgb, opacity));
+    grad.addColorStop(1, getStyleFromHsl(color2, opacity));
+    return grad;
+}
+function drawConnectLine(context, width, lineStyle, begin, end) {
+    drawLine(context, begin, end);
+    context.lineWidth = width;
+    context.strokeStyle = lineStyle;
+    context.stroke();
+}
+function lineStyle(container, ctx, p1, p2) {
+    const options = container.actualOptions, connectOptions = options.interactivity.modes.connect;
+    if (!connectOptions) {
+        return;
+    }
+    return gradient(ctx, p1, p2, connectOptions.links.opacity);
+}
+function drawConnection(container, p1, p2) {
+    container.canvas.draw((ctx) => {
+        const ls = lineStyle(container, ctx, p1, p2);
+        if (!ls) {
+            return;
+        }
+        const pos1 = p1.getPosition(), pos2 = p2.getPosition();
+        drawConnectLine(ctx, p1.retina.linksWidth ?? 0, ls, pos1, pos2);
+    });
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-connect/esm/Connector.js
+
+
+
+class Connector extends ExternalInteractorBase {
+    constructor(container) {
+        super(container);
+    }
+    clear() {
+    }
+    init() {
+        const container = this.container, connect = container.actualOptions.interactivity.modes.connect;
+        if (!connect) {
+            return;
+        }
+        container.retina.connectModeDistance = connect.distance * container.retina.pixelRatio;
+        container.retina.connectModeRadius = connect.radius * container.retina.pixelRatio;
+    }
+    async interact() {
+        const container = this.container, options = container.actualOptions;
+        if (options.interactivity.events.onHover.enable && container.interactivity.status === "pointermove") {
+            const mousePos = container.interactivity.mouse.position;
+            if (!container.retina.connectModeDistance ||
+                container.retina.connectModeDistance < 0 ||
+                !container.retina.connectModeRadius ||
+                container.retina.connectModeRadius < 0 ||
+                !mousePos) {
+                return;
+            }
+            const distance = Math.abs(container.retina.connectModeRadius), query = container.particles.quadTree.queryCircle(mousePos, distance, (p) => this.isEnabled(p));
+            let i = 0;
+            for (const p1 of query) {
+                const pos1 = p1.getPosition();
+                for (const p2 of query.slice(i + 1)) {
+                    const pos2 = p2.getPosition(), distMax = Math.abs(container.retina.connectModeDistance), xDiff = Math.abs(pos1.x - pos2.x), yDiff = Math.abs(pos1.y - pos2.y);
+                    if (xDiff < distMax && yDiff < distMax) {
+                        drawConnection(container, p1, p2);
+                    }
+                }
+                ++i;
+            }
+        }
+    }
+    isEnabled(particle) {
+        const container = this.container, mouse = container.interactivity.mouse, events = (particle?.interactivity ?? container.actualOptions.interactivity).events;
+        if (!(events.onHover.enable && mouse.position)) {
+            return false;
+        }
+        return isInArray("connect", events.onHover.mode);
+    }
+    loadModeOptions(options, ...sources) {
+        if (!options.connect) {
+            options.connect = new Connect();
+        }
+        for (const source of sources) {
+            options.connect.load(source?.connect);
+        }
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-connect/esm/index.js
+
+async function loadExternalConnectInteraction(engine) {
+    await engine.addInteractor("externalConnect", (container) => new Connector(container));
+}
+
+
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-grab/esm/Options/Classes/GrabLinks.js
+
+class GrabLinks {
+    constructor() {
+        this.blink = false;
+        this.consent = false;
+        this.opacity = 1;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.blink !== undefined) {
+            this.blink = data.blink;
+        }
+        if (data.color !== undefined) {
+            this.color = OptionsColor.create(this.color, data.color);
+        }
+        if (data.consent !== undefined) {
+            this.consent = data.consent;
+        }
+        if (data.opacity !== undefined) {
+            this.opacity = data.opacity;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-grab/esm/Options/Classes/Grab.js
+
+class Grab {
+    constructor() {
+        this.distance = 100;
+        this.links = new GrabLinks();
+    }
+    get lineLinked() {
+        return this.links;
+    }
+    set lineLinked(value) {
+        this.links = value;
+    }
+    get line_linked() {
+        return this.links;
+    }
+    set line_linked(value) {
+        this.links = value;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.distance !== undefined) {
+            this.distance = data.distance;
+        }
+        this.links.load(data.links ?? data.lineLinked ?? data.line_linked);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-grab/esm/Utils.js
+
+function drawGrabLine(context, width, begin, end, colorLine, opacity) {
+    drawLine(context, begin, end);
+    context.strokeStyle = getStyleFromRgb(colorLine, opacity);
+    context.lineWidth = width;
+    context.stroke();
+}
+function drawGrab(container, particle, lineColor, opacity, mousePos) {
+    container.canvas.draw((ctx) => {
+        const beginPos = particle.getPosition();
+        drawGrabLine(ctx, particle.retina.linksWidth ?? 0, beginPos, mousePos, lineColor, opacity);
+    });
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-grab/esm/Grabber.js
+
+
+
+class Grabber extends ExternalInteractorBase {
+    constructor(container) {
+        super(container);
+    }
+    clear() {
+    }
+    init() {
+        const container = this.container, grab = container.actualOptions.interactivity.modes.grab;
+        if (!grab) {
+            return;
+        }
+        container.retina.grabModeDistance = grab.distance * container.retina.pixelRatio;
+    }
+    async interact() {
+        const container = this.container, options = container.actualOptions, interactivity = options.interactivity;
+        if (!interactivity.modes.grab ||
+            !interactivity.events.onHover.enable ||
+            container.interactivity.status !== mouseMoveEvent) {
+            return;
+        }
+        const mousePos = container.interactivity.mouse.position;
+        if (!mousePos) {
+            return;
+        }
+        const distance = container.retina.grabModeDistance;
+        if (!distance || distance < 0) {
+            return;
+        }
+        const query = container.particles.quadTree.queryCircle(mousePos, distance, (p) => this.isEnabled(p));
+        for (const particle of query) {
+            const pos = particle.getPosition(), pointDistance = getDistance(pos, mousePos);
+            if (pointDistance > distance) {
+                continue;
+            }
+            const grabLineOptions = interactivity.modes.grab.links, lineOpacity = grabLineOptions.opacity, opacityLine = lineOpacity - (pointDistance * lineOpacity) / distance;
+            if (opacityLine <= 0) {
+                continue;
+            }
+            const optColor = grabLineOptions.color ?? particle.options.links?.color;
+            if (!container.particles.grabLineColor && optColor) {
+                const linksOptions = interactivity.modes.grab.links;
+                container.particles.grabLineColor = getLinkRandomColor(optColor, linksOptions.blink, linksOptions.consent);
+            }
+            const colorLine = getLinkColor(particle, undefined, container.particles.grabLineColor);
+            if (!colorLine) {
+                continue;
+            }
+            drawGrab(container, particle, colorLine, opacityLine, mousePos);
+        }
+    }
+    isEnabled(particle) {
+        const container = this.container, mouse = container.interactivity.mouse, events = (particle?.interactivity ?? container.actualOptions.interactivity).events;
+        return events.onHover.enable && !!mouse.position && isInArray("grab", events.onHover.mode);
+    }
+    loadModeOptions(options, ...sources) {
+        if (!options.grab) {
+            options.grab = new Grab();
+        }
+        for (const source of sources) {
+            options.grab.load(source?.grab);
+        }
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-grab/esm/index.js
+
+async function loadExternalGrabInteraction(engine) {
+    await engine.addInteractor("externalGrab", (container) => new Grabber(container));
+}
+
+
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-pause/esm/Pauser.js
+
+class Pauser extends ExternalInteractorBase {
+    constructor(container) {
+        super(container);
+        this.handleClickMode = (mode) => {
+            if (mode !== "pause") {
+                return;
+            }
+            const container = this.container;
+            if (container.getAnimationStatus()) {
+                container.pause();
+            }
+            else {
+                container.play();
+            }
+        };
+    }
+    clear() {
+    }
+    init() {
+    }
+    async interact() {
+    }
+    isEnabled() {
+        return true;
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-pause/esm/index.js
+
+async function loadExternalPauseInteraction(engine) {
+    await engine.addInteractor("externalPause", (container) => new Pauser(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-push/esm/Options/Classes/Push.js
+
+class Push {
+    constructor() {
+        this.default = true;
+        this.groups = [];
+        this.quantity = 4;
+    }
+    get particles_nb() {
+        return this.quantity;
+    }
+    set particles_nb(value) {
+        this.quantity = NumberUtils_setRangeValue(value);
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.default !== undefined) {
+            this.default = data.default;
+        }
+        if (data.groups !== undefined) {
+            this.groups = data.groups.map((t) => t);
+        }
+        if (!this.groups.length) {
+            this.default = true;
+        }
+        const quantity = data.quantity ?? data.particles_nb;
+        if (quantity !== undefined) {
+            this.quantity = NumberUtils_setRangeValue(quantity);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-push/esm/Pusher.js
+
+
+class Pusher extends ExternalInteractorBase {
+    constructor(container) {
+        super(container);
+        this.handleClickMode = (mode) => {
+            if (mode !== "push") {
+                return;
+            }
+            const container = this.container, options = container.actualOptions, pushOptions = options.interactivity.modes.push;
+            if (!pushOptions) {
+                return;
+            }
+            const quantity = getRangeValue(pushOptions.quantity);
+            if (quantity <= 0) {
+                return;
+            }
+            const group = itemFromArray([undefined, ...pushOptions.groups]), groupOptions = group !== undefined ? container.actualOptions.particles.groups[group] : undefined;
+            container.particles.push(quantity, container.interactivity.mouse, groupOptions, group);
+        };
+    }
+    clear() {
+    }
+    init() {
+    }
+    async interact() {
+    }
+    isEnabled() {
+        return true;
+    }
+    loadModeOptions(options, ...sources) {
+        if (!options.push) {
+            options.push = new Push();
+        }
+        for (const source of sources) {
+            options.push.load(source?.push);
+        }
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-push/esm/index.js
+
+async function loadExternalPushInteraction(engine) {
+    await engine.addInteractor("externalPush", (container) => new Pusher(container));
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-remove/esm/Options/Classes/Remove.js
+
+class Remove {
+    constructor() {
+        this.quantity = 2;
+    }
+    get particles_nb() {
+        return this.quantity;
+    }
+    set particles_nb(value) {
+        this.quantity = NumberUtils_setRangeValue(value);
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        const quantity = data.quantity ?? data.particles_nb;
+        if (quantity !== undefined) {
+            this.quantity = NumberUtils_setRangeValue(quantity);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-remove/esm/Remover.js
+
+
+class Remover extends ExternalInteractorBase {
+    constructor(container) {
+        super(container);
+        this.handleClickMode = (mode) => {
+            const container = this.container, options = container.actualOptions;
+            if (!options.interactivity.modes.remove || mode !== "remove") {
+                return;
+            }
+            const removeNb = getRangeValue(options.interactivity.modes.remove.quantity);
+            container.particles.removeQuantity(removeNb);
+        };
+    }
+    clear() {
+    }
+    init() {
+    }
+    async interact() {
+    }
+    isEnabled() {
+        return true;
+    }
+    loadModeOptions(options, ...sources) {
+        if (!options.remove) {
+            options.remove = new Remove();
+        }
+        for (const source of sources) {
+            options.remove.load(source?.remove);
+        }
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-remove/esm/index.js
+
+async function loadExternalRemoveInteraction(engine) {
+    await engine.addInteractor("externalRemove", (container) => new Remover(container));
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-repulse/esm/Options/Classes/RepulseBase.js
+class RepulseBase {
+    constructor() {
+        this.distance = 200;
+        this.duration = 0.4;
+        this.factor = 100;
+        this.speed = 1;
+        this.maxSpeed = 50;
+        this.easing = "ease-out-quad";
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.distance !== undefined) {
+            this.distance = data.distance;
+        }
+        if (data.duration !== undefined) {
+            this.duration = data.duration;
+        }
+        if (data.easing !== undefined) {
+            this.easing = data.easing;
+        }
+        if (data.factor !== undefined) {
+            this.factor = data.factor;
+        }
+        if (data.speed !== undefined) {
+            this.speed = data.speed;
+        }
+        if (data.maxSpeed !== undefined) {
+            this.maxSpeed = data.maxSpeed;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-repulse/esm/Options/Classes/RepulseDiv.js
+
+
+class RepulseDiv extends RepulseBase {
+    constructor() {
+        super();
+        this.selectors = [];
+    }
+    get ids() {
+        return executeOnSingleOrMultiple(this.selectors, (t) => t.replace("#", ""));
+    }
+    set ids(value) {
+        this.selectors = executeOnSingleOrMultiple(value, (t) => `#${t}`);
+    }
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        if (data.ids !== undefined) {
+            this.ids = data.ids;
+        }
+        if (data.selectors !== undefined) {
+            this.selectors = data.selectors;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-repulse/esm/Options/Classes/Repulse.js
+
+
+
+class Repulse extends RepulseBase {
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        this.divs = executeOnSingleOrMultiple(data.divs, (div) => {
+            const tmp = new RepulseDiv();
+            tmp.load(div);
+            return tmp;
+        });
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-repulse/esm/Repulser.js
+
+
+class Repulser extends ExternalInteractorBase {
+    constructor(engine, container) {
+        super(container);
+        this._clickRepulse = () => {
+            const container = this.container, repulseOptions = container.actualOptions.interactivity.modes.repulse;
+            if (!repulseOptions) {
+                return;
+            }
+            const repulse = container.repulse || { particles: [] };
+            if (!repulse.finish) {
+                if (!repulse.count) {
+                    repulse.count = 0;
+                }
+                repulse.count++;
+                if (repulse.count === container.particles.count) {
+                    repulse.finish = true;
+                }
+            }
+            if (repulse.clicking) {
+                const repulseDistance = container.retina.repulseModeDistance;
+                if (!repulseDistance || repulseDistance < 0) {
+                    return;
+                }
+                const repulseRadius = Math.pow(repulseDistance / 6, 3), mouseClickPos = container.interactivity.mouse.clickPosition;
+                if (mouseClickPos === undefined) {
+                    return;
+                }
+                const range = new Circle(mouseClickPos.x, mouseClickPos.y, repulseRadius), query = container.particles.quadTree.query(range, (p) => this.isEnabled(p));
+                for (const particle of query) {
+                    const { dx, dy, distance } = getDistances(mouseClickPos, particle.position), d = distance ** 2, velocity = repulseOptions.speed, force = (-repulseRadius * velocity) / d;
+                    if (d <= repulseRadius) {
+                        repulse.particles.push(particle);
+                        const vect = Vector.create(dx, dy);
+                        vect.length = force;
+                        particle.velocity.setTo(vect);
+                    }
+                }
+            }
+            else if (repulse.clicking === false) {
+                for (const particle of repulse.particles) {
+                    particle.velocity.setTo(particle.initialVelocity);
+                }
+                repulse.particles = [];
+            }
+        };
+        this._hoverRepulse = () => {
+            const container = this.container, mousePos = container.interactivity.mouse.position, repulseRadius = container.retina.repulseModeDistance;
+            if (!repulseRadius || repulseRadius < 0 || !mousePos) {
+                return;
+            }
+            this._processRepulse(mousePos, repulseRadius, new Circle(mousePos.x, mousePos.y, repulseRadius));
+        };
+        this._processRepulse = (position, repulseRadius, area, divRepulse) => {
+            const container = this.container, query = container.particles.quadTree.query(area, (p) => this.isEnabled(p)), repulseOptions = container.actualOptions.interactivity.modes.repulse;
+            if (!repulseOptions) {
+                return;
+            }
+            for (const particle of query) {
+                const { dx, dy, distance } = getDistances(particle.position, position), velocity = (divRepulse?.speed ?? repulseOptions.speed) * repulseOptions.factor, repulseFactor = clamp(getEasing(repulseOptions.easing)(1 - distance / repulseRadius) * velocity, 0, repulseOptions.maxSpeed), normVec = Vector.create(distance === 0 ? velocity : (dx / distance) * repulseFactor, distance === 0 ? velocity : (dy / distance) * repulseFactor);
+                particle.position.addTo(normVec);
+            }
+        };
+        this._singleSelectorRepulse = (selector, div) => {
+            const container = this.container, repulse = container.actualOptions.interactivity.modes.repulse;
+            if (!repulse) {
+                return;
+            }
+            const query = document.querySelectorAll(selector);
+            if (!query.length) {
+                return;
+            }
+            query.forEach((item) => {
+                const elem = item, pxRatio = container.retina.pixelRatio, pos = {
+                    x: (elem.offsetLeft + elem.offsetWidth / 2) * pxRatio,
+                    y: (elem.offsetTop + elem.offsetHeight / 2) * pxRatio,
+                }, repulseRadius = (elem.offsetWidth / 2) * pxRatio, area = div.type === "circle"
+                    ? new Circle(pos.x, pos.y, repulseRadius)
+                    : new Rectangle(elem.offsetLeft * pxRatio, elem.offsetTop * pxRatio, elem.offsetWidth * pxRatio, elem.offsetHeight * pxRatio), divs = repulse.divs, divRepulse = divMode(divs, elem);
+                this._processRepulse(pos, repulseRadius, area, divRepulse);
+            });
+        };
+        this._engine = engine;
+        if (!container.repulse) {
+            container.repulse = { particles: [] };
+        }
+        this.handleClickMode = (mode) => {
+            const options = this.container.actualOptions, repulseOpts = options.interactivity.modes.repulse;
+            if (!repulseOpts || mode !== "repulse") {
+                return;
+            }
+            if (!container.repulse) {
+                container.repulse = { particles: [] };
+            }
+            const repulse = container.repulse;
+            repulse.clicking = true;
+            repulse.count = 0;
+            for (const particle of container.repulse.particles) {
+                if (!this.isEnabled(particle)) {
+                    continue;
+                }
+                particle.velocity.setTo(particle.initialVelocity);
+            }
+            repulse.particles = [];
+            repulse.finish = false;
+            setTimeout(() => {
+                if (container.destroyed) {
+                    return;
+                }
+                repulse.clicking = false;
+            }, repulseOpts.duration * 1000);
+        };
+    }
+    clear() {
+    }
+    init() {
+        const container = this.container, repulse = container.actualOptions.interactivity.modes.repulse;
+        if (!repulse) {
+            return;
+        }
+        container.retina.repulseModeDistance = repulse.distance * container.retina.pixelRatio;
+    }
+    async interact() {
+        const container = this.container, options = container.actualOptions, mouseMoveStatus = container.interactivity.status === mouseMoveEvent, events = options.interactivity.events, hover = events.onHover, hoverEnabled = hover.enable, hoverMode = hover.mode, click = events.onClick, clickEnabled = click.enable, clickMode = click.mode, divs = events.onDiv;
+        if (mouseMoveStatus && hoverEnabled && isInArray("repulse", hoverMode)) {
+            this._hoverRepulse();
+        }
+        else if (clickEnabled && isInArray("repulse", clickMode)) {
+            this._clickRepulse();
+        }
+        else {
+            divModeExecute("repulse", divs, (selector, div) => this._singleSelectorRepulse(selector, div));
+        }
+    }
+    isEnabled(particle) {
+        const container = this.container, options = container.actualOptions, mouse = container.interactivity.mouse, events = (particle?.interactivity ?? options.interactivity).events, divs = events.onDiv, hover = events.onHover, click = events.onClick, divRepulse = isDivModeEnabled("repulse", divs);
+        if (!(divRepulse || (hover.enable && mouse.position) || (click.enable && mouse.clickPosition))) {
+            return false;
+        }
+        const hoverMode = hover.mode, clickMode = click.mode;
+        return isInArray("repulse", hoverMode) || isInArray("repulse", clickMode) || divRepulse;
+    }
+    loadModeOptions(options, ...sources) {
+        if (!options.repulse) {
+            options.repulse = new Repulse();
+        }
+        for (const source of sources) {
+            options.repulse.load(source?.repulse);
+        }
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-repulse/esm/index.js
+
+async function loadExternalRepulseInteraction(engine) {
+    await engine.addInteractor("externalRepulse", (container) => new Repulser(engine, container));
+}
+
+
+
+
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-slow/esm/Options/Classes/Slow.js
+class Slow {
+    constructor() {
+        this.factor = 3;
+        this.radius = 200;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.factor !== undefined) {
+            this.factor = data.factor;
+        }
+        if (data.radius !== undefined) {
+            this.radius = data.radius;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-slow/esm/Slower.js
+
+
+class Slower extends ExternalInteractorBase {
+    constructor(container) {
+        super(container);
+    }
+    clear(particle, delta, force) {
+        if (particle.slow.inRange && !force) {
+            return;
+        }
+        particle.slow.factor = 1;
+    }
+    init() {
+        const container = this.container, slow = container.actualOptions.interactivity.modes.slow;
+        if (!slow) {
+            return;
+        }
+        container.retina.slowModeRadius = slow.radius * container.retina.pixelRatio;
+    }
+    async interact() {
+    }
+    isEnabled(particle) {
+        const container = this.container, mouse = container.interactivity.mouse, events = (particle?.interactivity ?? container.actualOptions.interactivity).events;
+        return events.onHover.enable && !!mouse.position && isInArray("slow", events.onHover.mode);
+    }
+    loadModeOptions(options, ...sources) {
+        if (!options.slow) {
+            options.slow = new Slow();
+        }
+        for (const source of sources) {
+            options.slow.load(source?.slow);
+        }
+    }
+    reset(particle) {
+        particle.slow.inRange = false;
+        const container = this.container, options = container.actualOptions, mousePos = container.interactivity.mouse.position, radius = container.retina.slowModeRadius, slowOptions = options.interactivity.modes.slow;
+        if (!slowOptions || !radius || radius < 0 || !mousePos) {
+            return;
+        }
+        const particlePos = particle.getPosition(), dist = getDistance(mousePos, particlePos), proximityFactor = dist / radius, slowFactor = slowOptions.factor, { slow } = particle;
+        if (dist > radius) {
+            return;
+        }
+        slow.inRange = true;
+        slow.factor = proximityFactor / slowFactor;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-external-slow/esm/index.js
+
+async function loadExternalSlowInteraction(engine) {
+    await engine.addInteractor("externalSlow", (container) => new Slower(container));
+}
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-image/esm/Utils.js
+
+const currentColorRegex = /(#(?:[0-9a-f]{2}){2,4}|(#[0-9a-f]{3})|(rgb|hsl)a?\((-?\d+%?[,\s]+){2,3}\s*[\d.]+%?\))|currentcolor/gi;
+function replaceColorSvg(imageShape, color, opacity) {
+    const { svgData } = imageShape;
+    if (!svgData) {
+        return "";
+    }
+    const colorStyle = getStyleFromHsl(color, opacity);
+    if (svgData.includes("fill")) {
+        return svgData.replace(currentColorRegex, () => colorStyle);
+    }
+    const preFillIndex = svgData.indexOf(">");
+    return `${svgData.substring(0, preFillIndex)} fill="${colorStyle}"${svgData.substring(preFillIndex)}`;
+}
+async function loadImage(image) {
+    return new Promise((resolve) => {
+        image.loading = true;
+        const img = new Image();
+        image.element = img;
+        img.addEventListener("load", () => {
+            image.loading = false;
+            resolve();
+        });
+        img.addEventListener("error", () => {
+            image.element = undefined;
+            image.error = true;
+            image.loading = false;
+            console.error(`${errorPrefix} loading image: ${image.source}`);
+            resolve();
+        });
+        img.src = image.source;
+    });
+}
+async function downloadSvgImage(image) {
+    if (image.type !== "svg") {
+        await loadImage(image);
+        return;
+    }
+    image.loading = true;
+    const response = await fetch(image.source);
+    if (!response.ok) {
+        console.error(`${errorPrefix} Image not found`);
+        image.error = true;
+    }
+    if (!image.error) {
+        image.svgData = await response.text();
+    }
+    image.loading = false;
+}
+function replaceImageColor(image, imageData, color, particle) {
+    const svgColoredData = replaceColorSvg(image, color, particle.opacity?.value ?? 1), imageRes = {
+        color,
+        data: {
+            ...image,
+            svgData: svgColoredData,
+        },
+        loaded: false,
+        ratio: imageData.width / imageData.height,
+        replaceColor: imageData.replaceColor ?? imageData.replace_color,
+        source: imageData.src,
+    };
+    return new Promise((resolve) => {
+        const svg = new Blob([svgColoredData], { type: "image/svg+xml" }), domUrl = URL || window.URL || window.webkitURL || window, url = domUrl.createObjectURL(svg), img = new Image();
+        img.addEventListener("load", () => {
+            imageRes.loaded = true;
+            imageRes.element = img;
+            resolve(imageRes);
+            domUrl.revokeObjectURL(url);
+        });
+        img.addEventListener("error", async () => {
+            domUrl.revokeObjectURL(url);
+            const img2 = {
+                ...image,
+                error: false,
+                loading: true,
+            };
+            await loadImage(img2);
+            imageRes.loaded = true;
+            imageRes.element = img2.element;
+            resolve(imageRes);
+        });
+        img.src = url;
+    });
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-image/esm/ImageDrawer.js
+
+
+class ImageDrawer {
+    constructor(engine) {
+        this.loadImageShape = async (imageShape) => {
+            if (!this._engine.loadImage) {
+                throw new Error(`${errorPrefix} image shape not initialized`);
+            }
+            await this._engine.loadImage({
+                name: imageShape.name,
+                replaceColor: imageShape.replaceColor ?? imageShape.replace_color ?? false,
+                src: imageShape.src,
+            });
+        };
+        this._engine = engine;
+    }
+    addImage(image) {
+        if (!this._engine.images) {
+            this._engine.images = [];
+        }
+        this._engine.images.push(image);
+    }
+    draw(context, particle, radius, opacity) {
+        const image = particle.image, element = image?.element;
+        if (!element) {
+            return;
+        }
+        const ratio = image?.ratio ?? 1, pos = {
+            x: -radius,
+            y: -radius,
+        };
+        context.globalAlpha = opacity;
+        context.drawImage(element, pos.x, pos.y, radius * 2, (radius * 2) / ratio);
+        context.globalAlpha = 1;
+    }
+    getSidesCount() {
+        return 12;
+    }
+    async init(container) {
+        const options = container.actualOptions;
+        if (!options.preload || !this._engine.loadImage) {
+            return;
+        }
+        for (const imageData of options.preload) {
+            this._engine.loadImage(imageData);
+        }
+    }
+    loadShape(particle) {
+        if (particle.shape !== "image" && particle.shape !== "images") {
+            return;
+        }
+        if (!this._engine.images) {
+            this._engine.images = [];
+        }
+        const imageData = particle.shapeData, image = this._engine.images.find((t) => t.name === imageData.name || t.source === imageData.src);
+        if (!image) {
+            this.loadImageShape(imageData).then(() => {
+                this.loadShape(particle);
+            });
+        }
+    }
+    particleInit(container, particle) {
+        if (particle.shape !== "image" && particle.shape !== "images") {
+            return;
+        }
+        if (!this._engine.images) {
+            this._engine.images = [];
+        }
+        const images = this._engine.images, imageData = particle.shapeData, color = particle.getFillColor(), image = images.find((t) => t.name === imageData.name || t.source === imageData.src);
+        if (!image) {
+            return;
+        }
+        const replaceColor = imageData.replaceColor ?? imageData.replace_color ?? image.replaceColor;
+        if (image.loading) {
+            setTimeout(() => {
+                this.particleInit(container, particle);
+            });
+            return;
+        }
+        (async () => {
+            let imageRes;
+            if (image.svgData && color) {
+                imageRes = await replaceImageColor(image, imageData, color, particle);
+            }
+            else {
+                imageRes = {
+                    color,
+                    data: image,
+                    element: image.element,
+                    loaded: true,
+                    ratio: imageData.width && imageData.height ? imageData.width / imageData.height : image.ratio ?? 1,
+                    replaceColor: replaceColor,
+                    source: imageData.src,
+                };
+            }
+            if (!imageRes.ratio) {
+                imageRes.ratio = 1;
+            }
+            const fill = imageData.fill ?? particle.fill, close = imageData.close ?? particle.close, imageShape = {
+                image: imageRes,
+                fill,
+                close,
+            };
+            particle.image = imageShape.image;
+            particle.fill = imageShape.fill;
+            particle.close = imageShape.close;
+        })();
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-image/esm/Options/Classes/Preload.js
+class Preload {
+    constructor() {
+        this.src = "";
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.height !== undefined) {
+            this.height = data.height;
+        }
+        if (data.name !== undefined) {
+            this.name = data.name;
+        }
+        if (data.replaceColor !== undefined) {
+            this.replaceColor = data.replaceColor;
+        }
+        if (data.src !== undefined) {
+            this.src = data.src;
+        }
+        if (data.width !== undefined) {
+            this.width = data.width;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-image/esm/ImagePreloader.js
+
+class ImagePreloaderPlugin {
+    constructor(engine) {
+        this.id = "imagePreloader";
+        this._engine = engine;
+    }
+    getPlugin() {
+        return {};
+    }
+    loadOptions(options, source) {
+        if (!source || !source.preload) {
+            return;
+        }
+        if (!options.preload) {
+            options.preload = [];
+        }
+        const preloadOptions = options.preload;
+        for (const item of source.preload) {
+            const existing = preloadOptions.find((t) => t.name === item.name || t.src === item.src);
+            if (existing) {
+                existing.load(item);
+            }
+            else {
+                const preload = new Preload();
+                preload.load(item);
+                preloadOptions.push(preload);
+            }
+        }
+    }
+    needsPlugin() {
+        return true;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-image/esm/index.js
+
+
+
+
+async function loadImageShape(engine) {
+    if (!engine.loadImage) {
+        engine.loadImage = async (data) => {
+            if (!data.name && !data.src) {
+                throw new Error(`${errorPrefix} no image source provided`);
+            }
+            if (!engine.images) {
+                engine.images = [];
+            }
+            if (engine.images.find((t) => t.name === data.name || t.source === data.src)) {
+                return;
+            }
+            try {
+                const image = {
+                    name: data.name ?? data.src,
+                    source: data.src,
+                    type: data.src.substring(data.src.length - 3),
+                    error: false,
+                    loading: true,
+                    replaceColor: data.replaceColor,
+                    ratio: data.width && data.height ? data.width / data.height : undefined,
+                };
+                engine.images.push(image);
+                const imageFunc = data.replaceColor ? downloadSvgImage : loadImage;
+                await imageFunc(image);
+            }
+            catch {
+                throw new Error(`${errorPrefix} ${data.name ?? data.src} not found`);
+            }
+        };
+    }
+    const preloader = new ImagePreloaderPlugin(engine);
+    await engine.addPlugin(preloader);
+    await engine.addShape(["image", "images"], new ImageDrawer(engine));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-life/esm/Options/Classes/LifeDelay.js
+
+class LifeDelay extends ValueWithRandom {
+    constructor() {
+        super();
+        this.sync = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        super.load(data);
+        if (data.sync !== undefined) {
+            this.sync = data.sync;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-life/esm/Options/Classes/LifeDuration.js
+
+class LifeDuration extends ValueWithRandom {
+    constructor() {
+        super();
+        this.random.minimumValue = 0.0001;
+        this.sync = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        super.load(data);
+        if (data.sync !== undefined) {
+            this.sync = data.sync;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-life/esm/Options/Classes/Life.js
+
+
+class Life {
+    constructor() {
+        this.count = 0;
+        this.delay = new LifeDelay();
+        this.duration = new LifeDuration();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.count !== undefined) {
+            this.count = data.count;
+        }
+        this.delay.load(data.delay);
+        this.duration.load(data.duration);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-life/esm/LifeUpdater.js
+
+
+class LifeUpdater {
+    constructor(container) {
+        this.container = container;
+    }
+    init(particle) {
+        const container = this.container, particlesOptions = particle.options, lifeOptions = particlesOptions.life;
+        if (!lifeOptions) {
+            return;
+        }
+        particle.life = {
+            delay: container.retina.reduceFactor
+                ? ((getRangeValue(lifeOptions.delay.value) * (lifeOptions.delay.sync ? 1 : getRandom())) /
+                    container.retina.reduceFactor) *
+                    1000
+                : 0,
+            delayTime: 0,
+            duration: container.retina.reduceFactor
+                ? ((getRangeValue(lifeOptions.duration.value) * (lifeOptions.duration.sync ? 1 : getRandom())) /
+                    container.retina.reduceFactor) *
+                    1000
+                : 0,
+            time: 0,
+            count: lifeOptions.count,
+        };
+        if (particle.life.duration <= 0) {
+            particle.life.duration = -1;
+        }
+        if (particle.life.count <= 0) {
+            particle.life.count = -1;
+        }
+        if (particle.life) {
+            particle.spawning = particle.life.delay > 0;
+        }
+    }
+    isEnabled(particle) {
+        return !particle.destroyed;
+    }
+    loadOptions(options, ...sources) {
+        if (!options.life) {
+            options.life = new Life();
+        }
+        for (const source of sources) {
+            options.life.load(source?.life);
+        }
+    }
+    update(particle, delta) {
+        if (!this.isEnabled(particle) || !particle.life) {
+            return;
+        }
+        const life = particle.life;
+        let justSpawned = false;
+        if (particle.spawning) {
+            life.delayTime += delta.value;
+            if (life.delayTime >= particle.life.delay) {
+                justSpawned = true;
+                particle.spawning = false;
+                life.delayTime = 0;
+                life.time = 0;
+            }
+            else {
+                return;
+            }
+        }
+        if (life.duration === -1) {
+            return;
+        }
+        if (particle.spawning) {
+            return;
+        }
+        if (justSpawned) {
+            life.time = 0;
+        }
+        else {
+            life.time += delta.value;
+        }
+        if (life.time < life.duration) {
+            return;
+        }
+        life.time = 0;
+        if (particle.life.count > 0) {
+            particle.life.count--;
+        }
+        if (particle.life.count === 0) {
+            particle.destroy();
+            return;
+        }
+        const canvasSize = this.container.canvas.size, widthRange = NumberUtils_setRangeValue(0, canvasSize.width), heightRange = NumberUtils_setRangeValue(0, canvasSize.width);
+        particle.position.x = randomInRange(widthRange);
+        particle.position.y = randomInRange(heightRange);
+        particle.spawning = true;
+        life.delayTime = 0;
+        life.time = 0;
+        particle.reset();
+        const lifeOptions = particle.options.life;
+        if (lifeOptions) {
+            life.delay = getRangeValue(lifeOptions.delay.value) * 1000;
+            life.duration = getRangeValue(lifeOptions.duration.value) * 1000;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-life/esm/index.js
+
+async function loadLifeUpdater(engine) {
+    await engine.addParticleUpdater("life", (container) => new LifeUpdater(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-line/esm/LineDrawer.js
+class LineDrawer {
+    draw(context, _particle, radius) {
+        context.moveTo(-radius / 2, 0);
+        context.lineTo(radius / 2, 0);
+    }
+    getSidesCount() {
+        return 1;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-line/esm/index.js
+
+async function loadLineShape(engine) {
+    await engine.addShape("line", new LineDrawer());
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-opacity/esm/Utils.js
+
+function checkDestroy(particle, value, minValue, maxValue) {
+    switch (particle.options.opacity.animation.destroy) {
+        case "max":
+            if (value >= maxValue) {
+                particle.destroy();
+            }
+            break;
+        case "min":
+            if (value <= minValue) {
+                particle.destroy();
+            }
+            break;
+    }
+}
+function updateOpacity(particle, delta) {
+    const data = particle.opacity;
+    if (particle.destroyed || !data?.enable || ((data.maxLoops ?? 0) > 0 && (data.loops ?? 0) > (data.maxLoops ?? 0))) {
+        return;
+    }
+    const minValue = data.min, maxValue = data.max, decay = data.decay ?? 1;
+    if (!data.time) {
+        data.time = 0;
+    }
+    if ((data.delayTime ?? 0) > 0 && data.time < (data.delayTime ?? 0)) {
+        data.time += delta.value;
+    }
+    if ((data.delayTime ?? 0) > 0 && data.time < (data.delayTime ?? 0)) {
+        return;
+    }
+    switch (data.status) {
+        case "increasing":
+            if (data.value >= maxValue) {
+                data.status = "decreasing";
+                if (!data.loops) {
+                    data.loops = 0;
+                }
+                data.loops++;
+            }
+            else {
+                data.value += (data.velocity ?? 0) * delta.factor;
+            }
+            break;
+        case "decreasing":
+            if (data.value <= minValue) {
+                data.status = "increasing";
+                if (!data.loops) {
+                    data.loops = 0;
+                }
+                data.loops++;
+            }
+            else {
+                data.value -= (data.velocity ?? 0) * delta.factor;
+            }
+            break;
+    }
+    if (data.velocity && data.decay !== 1) {
+        data.velocity *= decay;
+    }
+    checkDestroy(particle, data.value, minValue, maxValue);
+    if (!particle.destroyed) {
+        data.value = clamp(data.value, minValue, maxValue);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-opacity/esm/OpacityUpdater.js
+
+
+class OpacityUpdater {
+    constructor(container) {
+        this.container = container;
+    }
+    init(particle) {
+        const opacityOptions = particle.options.opacity;
+        particle.opacity = initParticleNumericAnimationValue(opacityOptions, 1);
+        const opacityAnimation = opacityOptions.animation;
+        if (opacityAnimation.enable) {
+            particle.opacity.velocity =
+                (getRangeValue(opacityAnimation.speed) / 100) * this.container.retina.reduceFactor;
+            if (!opacityAnimation.sync) {
+                particle.opacity.velocity *= getRandom();
+            }
+        }
+    }
+    isEnabled(particle) {
+        return (!particle.destroyed &&
+            !particle.spawning &&
+            !!particle.opacity &&
+            particle.opacity.enable &&
+            ((particle.opacity.maxLoops ?? 0) <= 0 ||
+                ((particle.opacity.maxLoops ?? 0) > 0 &&
+                    (particle.opacity.loops ?? 0) < (particle.opacity.maxLoops ?? 0))));
+    }
+    reset(particle) {
+        if (particle.opacity) {
+            particle.opacity.time = 0;
+            particle.opacity.loops = 0;
+        }
+    }
+    update(particle, delta) {
+        if (!this.isEnabled(particle)) {
+            return;
+        }
+        updateOpacity(particle, delta);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-opacity/esm/index.js
+
+async function loadOpacityUpdater(engine) {
+    await engine.addParticleUpdater("opacity", (container) => new OpacityUpdater(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-out-modes/esm/Utils.js
+
+function bounceHorizontal(data) {
+    if (data.outMode !== "bounce" &&
+        data.outMode !== "bounce-horizontal" &&
+        data.outMode !== "bounceHorizontal" &&
+        data.outMode !== "split") {
+        return;
+    }
+    if (data.bounds.right < 0) {
+        data.particle.position.x = data.size + data.offset.x;
+    }
+    else if (data.bounds.left > data.canvasSize.width) {
+        data.particle.position.x = data.canvasSize.width - data.size - data.offset.x;
+    }
+    const velocity = data.particle.velocity.x;
+    let bounced = false;
+    if ((data.direction === "right" && data.bounds.right >= data.canvasSize.width && velocity > 0) ||
+        (data.direction === "left" && data.bounds.left <= 0 && velocity < 0)) {
+        const newVelocity = getValue(data.particle.options.bounce.horizontal);
+        data.particle.velocity.x *= -newVelocity;
+        bounced = true;
+    }
+    if (!bounced) {
+        return;
+    }
+    const minPos = data.offset.x + data.size;
+    if (data.bounds.right >= data.canvasSize.width) {
+        data.particle.position.x = data.canvasSize.width - minPos;
+    }
+    else if (data.bounds.left <= 0) {
+        data.particle.position.x = minPos;
+    }
+    if (data.outMode === "split") {
+        data.particle.destroy();
+    }
+}
+function bounceVertical(data) {
+    if (data.outMode !== "bounce" &&
+        data.outMode !== "bounce-vertical" &&
+        data.outMode !== "bounceVertical" &&
+        data.outMode !== "split") {
+        return;
+    }
+    if (data.bounds.bottom < 0) {
+        data.particle.position.y = data.size + data.offset.y;
+    }
+    else if (data.bounds.top > data.canvasSize.height) {
+        data.particle.position.y = data.canvasSize.height - data.size - data.offset.y;
+    }
+    const velocity = data.particle.velocity.y;
+    let bounced = false;
+    if ((data.direction === "bottom" && data.bounds.bottom >= data.canvasSize.height && velocity > 0) ||
+        (data.direction === "top" && data.bounds.top <= 0 && velocity < 0)) {
+        const newVelocity = getValue(data.particle.options.bounce.vertical);
+        data.particle.velocity.y *= -newVelocity;
+        bounced = true;
+    }
+    if (!bounced) {
+        return;
+    }
+    const minPos = data.offset.y + data.size;
+    if (data.bounds.bottom >= data.canvasSize.height) {
+        data.particle.position.y = data.canvasSize.height - minPos;
+    }
+    else if (data.bounds.top <= 0) {
+        data.particle.position.y = minPos;
+    }
+    if (data.outMode === "split") {
+        data.particle.destroy();
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-out-modes/esm/BounceOutMode.js
+
+
+class BounceOutMode {
+    constructor(container) {
+        this.container = container;
+        this.modes = [
+            "bounce",
+            "bounce-vertical",
+            "bounce-horizontal",
+            "bounceVertical",
+            "bounceHorizontal",
+            "split",
+        ];
+    }
+    update(particle, direction, delta, outMode) {
+        if (!this.modes.includes(outMode)) {
+            return;
+        }
+        const container = this.container;
+        let handled = false;
+        for (const [, plugin] of container.plugins) {
+            if (plugin.particleBounce !== undefined) {
+                handled = plugin.particleBounce(particle, delta, direction);
+            }
+            if (handled) {
+                break;
+            }
+        }
+        if (handled) {
+            return;
+        }
+        const pos = particle.getPosition(), offset = particle.offset, size = particle.getRadius(), bounds = calculateBounds(pos, size), canvasSize = container.canvas.size;
+        bounceHorizontal({ particle, outMode, direction, bounds, canvasSize, offset, size });
+        bounceVertical({ particle, outMode, direction, bounds, canvasSize, offset, size });
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-out-modes/esm/DestroyOutMode.js
+
+class DestroyOutMode {
+    constructor(container) {
+        this.container = container;
+        this.modes = ["destroy"];
+    }
+    update(particle, direction, delta, outMode) {
+        if (!this.modes.includes(outMode)) {
+            return;
+        }
+        const container = this.container;
+        switch (particle.outType) {
+            case "normal":
+            case "outside":
+                if (isPointInside(particle.position, container.canvas.size, Vector.origin, particle.getRadius(), direction)) {
+                    return;
+                }
+                break;
+            case "inside": {
+                const { dx, dy } = getDistances(particle.position, particle.moveCenter);
+                const { x: vx, y: vy } = particle.velocity;
+                if ((vx < 0 && dx > particle.moveCenter.radius) ||
+                    (vy < 0 && dy > particle.moveCenter.radius) ||
+                    (vx >= 0 && dx < -particle.moveCenter.radius) ||
+                    (vy >= 0 && dy < -particle.moveCenter.radius)) {
+                    return;
+                }
+                break;
+            }
+        }
+        container.particles.remove(particle, undefined, true);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-out-modes/esm/NoneOutMode.js
+
+class NoneOutMode {
+    constructor(container) {
+        this.container = container;
+        this.modes = ["none"];
+    }
+    update(particle, direction, delta, outMode) {
+        if (!this.modes.includes(outMode)) {
+            return;
+        }
+        if ((particle.options.move.distance.horizontal &&
+            (direction === "left" || direction === "right")) ||
+            (particle.options.move.distance.vertical &&
+                (direction === "top" || direction === "bottom"))) {
+            return;
+        }
+        const gravityOptions = particle.options.move.gravity, container = this.container;
+        const canvasSize = container.canvas.size;
+        const pRadius = particle.getRadius();
+        if (!gravityOptions.enable) {
+            if ((particle.velocity.y > 0 && particle.position.y <= canvasSize.height + pRadius) ||
+                (particle.velocity.y < 0 && particle.position.y >= -pRadius) ||
+                (particle.velocity.x > 0 && particle.position.x <= canvasSize.width + pRadius) ||
+                (particle.velocity.x < 0 && particle.position.x >= -pRadius)) {
+                return;
+            }
+            if (!isPointInside(particle.position, container.canvas.size, Vector.origin, pRadius, direction)) {
+                container.particles.remove(particle);
+            }
+        }
+        else {
+            const position = particle.position;
+            if ((!gravityOptions.inverse &&
+                position.y > canvasSize.height + pRadius &&
+                direction === "bottom") ||
+                (gravityOptions.inverse && position.y < -pRadius && direction === "top")) {
+                container.particles.remove(particle);
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-out-modes/esm/OutOutMode.js
+
+class OutOutMode {
+    constructor(container) {
+        this.container = container;
+        this.modes = ["out"];
+    }
+    update(particle, direction, delta, outMode) {
+        if (!this.modes.includes(outMode)) {
+            return;
+        }
+        const container = this.container;
+        switch (particle.outType) {
+            case "inside": {
+                const { x: vx, y: vy } = particle.velocity;
+                const circVec = Vector.origin;
+                circVec.length = particle.moveCenter.radius;
+                circVec.angle = particle.velocity.angle + Math.PI;
+                circVec.addTo(Vector.create(particle.moveCenter));
+                const { dx, dy } = getDistances(particle.position, circVec);
+                if ((vx <= 0 && dx >= 0) || (vy <= 0 && dy >= 0) || (vx >= 0 && dx <= 0) || (vy >= 0 && dy <= 0)) {
+                    return;
+                }
+                particle.position.x = Math.floor(randomInRange({
+                    min: 0,
+                    max: container.canvas.size.width,
+                }));
+                particle.position.y = Math.floor(randomInRange({
+                    min: 0,
+                    max: container.canvas.size.height,
+                }));
+                const { dx: newDx, dy: newDy } = getDistances(particle.position, particle.moveCenter);
+                particle.direction = Math.atan2(-newDy, -newDx);
+                particle.velocity.angle = particle.direction;
+                break;
+            }
+            default: {
+                if (isPointInside(particle.position, container.canvas.size, Vector.origin, particle.getRadius(), direction)) {
+                    return;
+                }
+                switch (particle.outType) {
+                    case "outside": {
+                        particle.position.x =
+                            Math.floor(randomInRange({
+                                min: -particle.moveCenter.radius,
+                                max: particle.moveCenter.radius,
+                            })) + particle.moveCenter.x;
+                        particle.position.y =
+                            Math.floor(randomInRange({
+                                min: -particle.moveCenter.radius,
+                                max: particle.moveCenter.radius,
+                            })) + particle.moveCenter.y;
+                        const { dx, dy } = getDistances(particle.position, particle.moveCenter);
+                        if (particle.moveCenter.radius) {
+                            particle.direction = Math.atan2(dy, dx);
+                            particle.velocity.angle = particle.direction;
+                        }
+                        break;
+                    }
+                    case "normal": {
+                        const wrap = particle.options.move.warp, canvasSize = container.canvas.size, newPos = {
+                            bottom: canvasSize.height + particle.getRadius() + particle.offset.y,
+                            left: -particle.getRadius() - particle.offset.x,
+                            right: canvasSize.width + particle.getRadius() + particle.offset.x,
+                            top: -particle.getRadius() - particle.offset.y,
+                        }, sizeValue = particle.getRadius(), nextBounds = calculateBounds(particle.position, sizeValue);
+                        if (direction === "right" &&
+                            nextBounds.left > canvasSize.width + particle.offset.x) {
+                            particle.position.x = newPos.left;
+                            particle.initialPosition.x = particle.position.x;
+                            if (!wrap) {
+                                particle.position.y = getRandom() * canvasSize.height;
+                                particle.initialPosition.y = particle.position.y;
+                            }
+                        }
+                        else if (direction === "left" && nextBounds.right < -particle.offset.x) {
+                            particle.position.x = newPos.right;
+                            particle.initialPosition.x = particle.position.x;
+                            if (!wrap) {
+                                particle.position.y = getRandom() * canvasSize.height;
+                                particle.initialPosition.y = particle.position.y;
+                            }
+                        }
+                        if (direction === "bottom" &&
+                            nextBounds.top > canvasSize.height + particle.offset.y) {
+                            if (!wrap) {
+                                particle.position.x = getRandom() * canvasSize.width;
+                                particle.initialPosition.x = particle.position.x;
+                            }
+                            particle.position.y = newPos.top;
+                            particle.initialPosition.y = particle.position.y;
+                        }
+                        else if (direction === "top" && nextBounds.bottom < -particle.offset.y) {
+                            if (!wrap) {
+                                particle.position.x = getRandom() * canvasSize.width;
+                                particle.initialPosition.x = particle.position.x;
+                            }
+                            particle.position.y = newPos.bottom;
+                            particle.initialPosition.y = particle.position.y;
+                        }
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-out-modes/esm/OutOfCanvasUpdater.js
+
+
+
+
+class OutOfCanvasUpdater {
+    constructor(container) {
+        this.container = container;
+        this._updateOutMode = (particle, delta, outMode, direction) => {
+            for (const updater of this.updaters) {
+                updater.update(particle, direction, delta, outMode);
+            }
+        };
+        this.updaters = [
+            new BounceOutMode(container),
+            new DestroyOutMode(container),
+            new OutOutMode(container),
+            new NoneOutMode(container),
+        ];
+    }
+    init() {
+    }
+    isEnabled(particle) {
+        return !particle.destroyed && !particle.spawning;
+    }
+    update(particle, delta) {
+        const outModes = particle.options.move.outModes;
+        this._updateOutMode(particle, delta, outModes.bottom ?? outModes.default, "bottom");
+        this._updateOutMode(particle, delta, outModes.left ?? outModes.default, "left");
+        this._updateOutMode(particle, delta, outModes.right ?? outModes.default, "right");
+        this._updateOutMode(particle, delta, outModes.top ?? outModes.default, "top");
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-out-modes/esm/index.js
+
+async function loadOutModesUpdater(engine) {
+    await engine.addParticleUpdater("outModes", (container) => new OutOfCanvasUpdater(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-move-parallax/esm/ParallaxMover.js
+
+class ParallaxMover {
+    init() {
+    }
+    isEnabled(particle) {
+        return (!isSsr() &&
+            !particle.destroyed &&
+            particle.container.actualOptions.interactivity.events.onHover.parallax.enable);
+    }
+    move(particle) {
+        const container = particle.container, options = container.actualOptions, parallaxOptions = options.interactivity.events.onHover.parallax;
+        if (isSsr() || !parallaxOptions.enable) {
+            return;
+        }
+        const parallaxForce = parallaxOptions.force, mousePos = container.interactivity.mouse.position;
+        if (!mousePos) {
+            return;
+        }
+        const canvasSize = container.canvas.size, canvasCenter = {
+            x: canvasSize.width / 2,
+            y: canvasSize.height / 2,
+        }, parallaxSmooth = parallaxOptions.smooth, factor = particle.getRadius() / parallaxForce, centerDistance = {
+            x: (mousePos.x - canvasCenter.x) * factor,
+            y: (mousePos.y - canvasCenter.y) * factor,
+        }, { offset } = particle;
+        offset.x += (centerDistance.x - offset.x) / parallaxSmooth;
+        offset.y += (centerDistance.y - offset.y) / parallaxSmooth;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-move-parallax/esm/index.js
+
+async function loadParallaxMover(engine) {
+    engine.addMover("parallax", () => new ParallaxMover());
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-attract/esm/Attractor.js
+
+class Attractor_Attractor extends ParticlesInteractorBase {
+    constructor(container) {
+        super(container);
+    }
+    clear() {
+    }
+    init() {
+    }
+    async interact(p1) {
+        const container = this.container, distance = p1.retina.attractDistance ?? container.retina.attractDistance, pos1 = p1.getPosition(), query = container.particles.quadTree.queryCircle(pos1, distance);
+        for (const p2 of query) {
+            if (p1 === p2 || !p2.options.move.attract.enable || p2.destroyed || p2.spawning) {
+                continue;
+            }
+            const pos2 = p2.getPosition(), { dx, dy } = getDistances(pos1, pos2), rotate = p1.options.move.attract.rotate, ax = dx / (rotate.x * 1000), ay = dy / (rotate.y * 1000), p1Factor = p2.size.value / p1.size.value, p2Factor = 1 / p1Factor;
+            p1.velocity.x -= ax * p1Factor;
+            p1.velocity.y -= ay * p1Factor;
+            p2.velocity.x += ax * p2Factor;
+            p2.velocity.y += ay * p2Factor;
+        }
+    }
+    isEnabled(particle) {
+        return particle.options.move.attract.enable;
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-attract/esm/index.js
+
+async function loadParticlesAttractInteraction(engine) {
+    await engine.addInteractor("particlesAttract", (container) => new Attractor_Attractor(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-collisions/esm/Absorb.js
+
+function updateAbsorb(p1, r1, p2, r2, delta, pixelRatio) {
+    const factor = clamp((p1.options.collisions.absorb.speed * delta.factor) / 10, 0, r2);
+    p1.size.value += factor / 2;
+    p2.size.value -= factor;
+    if (r2 <= pixelRatio) {
+        p2.size.value = 0;
+        p2.destroy();
+    }
+}
+function absorb(p1, p2, delta, pixelRatio) {
+    const r1 = p1.getRadius(), r2 = p2.getRadius();
+    if (r1 === undefined && r2 !== undefined) {
+        p1.destroy();
+    }
+    else if (r1 !== undefined && r2 === undefined) {
+        p2.destroy();
+    }
+    else if (r1 !== undefined && r2 !== undefined) {
+        if (r1 >= r2) {
+            updateAbsorb(p1, r1, p2, r2, delta, pixelRatio);
+        }
+        else {
+            updateAbsorb(p2, r2, p1, r1, delta, pixelRatio);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-collisions/esm/Bounce.js
+
+const fixBounceSpeed = (p) => {
+    if (p.collisionMaxSpeed === undefined) {
+        p.collisionMaxSpeed = getRangeValue(p.options.collisions.maxSpeed);
+    }
+    if (p.velocity.length > p.collisionMaxSpeed) {
+        p.velocity.length = p.collisionMaxSpeed;
+    }
+};
+function bounce(p1, p2) {
+    circleBounce(circleBounceDataFromParticle(p1), circleBounceDataFromParticle(p2));
+    fixBounceSpeed(p1);
+    fixBounceSpeed(p2);
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-collisions/esm/Destroy.js
+
+function destroy(p1, p2) {
+    if (!p1.unbreakable && !p2.unbreakable) {
+        bounce(p1, p2);
+    }
+    if (p1.getRadius() === undefined && p2.getRadius() !== undefined) {
+        p1.destroy();
+    }
+    else if (p1.getRadius() !== undefined && p2.getRadius() === undefined) {
+        p2.destroy();
+    }
+    else if (p1.getRadius() !== undefined && p2.getRadius() !== undefined) {
+        const deleteP = p1.getRadius() >= p2.getRadius() ? p2 : p1;
+        deleteP.destroy();
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-collisions/esm/ResolveCollision.js
+
+
+
+function resolveCollision(p1, p2, delta, pixelRatio) {
+    switch (p1.options.collisions.mode) {
+        case "absorb": {
+            absorb(p1, p2, delta, pixelRatio);
+            break;
+        }
+        case "bounce": {
+            bounce(p1, p2);
+            break;
+        }
+        case "destroy": {
+            destroy(p1, p2);
+            break;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-collisions/esm/Collider.js
+
+
+class Collider extends ParticlesInteractorBase {
+    constructor(container) {
+        super(container);
+    }
+    clear() {
+    }
+    init() {
+    }
+    async interact(p1, delta) {
+        if (p1.destroyed || p1.spawning) {
+            return;
+        }
+        const container = this.container, pos1 = p1.getPosition(), radius1 = p1.getRadius(), query = container.particles.quadTree.queryCircle(pos1, radius1 * 2);
+        for (const p2 of query) {
+            if (p1 === p2 ||
+                !p2.options.collisions.enable ||
+                p1.options.collisions.mode !== p2.options.collisions.mode ||
+                p2.destroyed ||
+                p2.spawning) {
+                continue;
+            }
+            const pos2 = p2.getPosition(), radius2 = p2.getRadius();
+            if (Math.abs(Math.round(pos1.z) - Math.round(pos2.z)) > radius1 + radius2) {
+                continue;
+            }
+            const dist = getDistance(pos1, pos2), distP = radius1 + radius2;
+            if (dist > distP) {
+                continue;
+            }
+            resolveCollision(p1, p2, delta, container.retina.pixelRatio);
+        }
+    }
+    isEnabled(particle) {
+        return particle.options.collisions.enable;
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-collisions/esm/index.js
+
+async function loadParticlesCollisionsInteraction(engine) {
+    await engine.addInteractor("particlesCollisions", (container) => new Collider(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-links/esm/CircleWarp.js
+
+class CircleWarp extends Circle {
+    constructor(x, y, radius, canvasSize) {
+        super(x, y, radius);
+        this.canvasSize = canvasSize;
+        this.canvasSize = { ...canvasSize };
+    }
+    contains(point) {
+        const { width, height } = this.canvasSize;
+        const { x, y } = point;
+        return (super.contains(point) ||
+            super.contains({ x: x - width, y }) ||
+            super.contains({ x: x - width, y: y - height }) ||
+            super.contains({ x, y: y - height }));
+    }
+    intersects(range) {
+        if (super.intersects(range)) {
+            return true;
+        }
+        const rect = range, circle = range, newPos = {
+            x: range.position.x - this.canvasSize.width,
+            y: range.position.y - this.canvasSize.height,
+        };
+        if (circle.radius !== undefined) {
+            const biggerCircle = new Circle(newPos.x, newPos.y, circle.radius * 2);
+            return super.intersects(biggerCircle);
+        }
+        else if (rect.size !== undefined) {
+            const rectSW = new Rectangle(newPos.x, newPos.y, rect.size.width * 2, rect.size.height * 2);
+            return super.intersects(rectSW);
+        }
+        return false;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-links/esm/Options/Classes/LinksShadow.js
+
+class LinksShadow {
+    constructor() {
+        this.blur = 5;
+        this.color = new OptionsColor();
+        this.color.value = "#000";
+        this.enable = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.blur !== undefined) {
+            this.blur = data.blur;
+        }
+        this.color = OptionsColor.create(this.color, data.color);
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-links/esm/Options/Classes/LinksTriangle.js
+
+class LinksTriangle {
+    constructor() {
+        this.enable = false;
+        this.frequency = 1;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.color !== undefined) {
+            this.color = OptionsColor.create(this.color, data.color);
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.frequency !== undefined) {
+            this.frequency = data.frequency;
+        }
+        if (data.opacity !== undefined) {
+            this.opacity = data.opacity;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-links/esm/Options/Classes/Links.js
+
+
+
+class Links {
+    constructor() {
+        this.blink = false;
+        this.color = new OptionsColor();
+        this.color.value = "#fff";
+        this.consent = false;
+        this.distance = 100;
+        this.enable = false;
+        this.frequency = 1;
+        this.opacity = 1;
+        this.shadow = new LinksShadow();
+        this.triangles = new LinksTriangle();
+        this.width = 1;
+        this.warp = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.id !== undefined) {
+            this.id = data.id;
+        }
+        if (data.blink !== undefined) {
+            this.blink = data.blink;
+        }
+        this.color = OptionsColor.create(this.color, data.color);
+        if (data.consent !== undefined) {
+            this.consent = data.consent;
+        }
+        if (data.distance !== undefined) {
+            this.distance = data.distance;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.frequency !== undefined) {
+            this.frequency = data.frequency;
+        }
+        if (data.opacity !== undefined) {
+            this.opacity = data.opacity;
+        }
+        this.shadow.load(data.shadow);
+        this.triangles.load(data.triangles);
+        if (data.width !== undefined) {
+            this.width = data.width;
+        }
+        if (data.warp !== undefined) {
+            this.warp = data.warp;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-links/esm/Linker.js
+
+
+
+function getLinkDistance(pos1, pos2, optDistance, canvasSize, warp) {
+    const { dx, dy, distance } = getDistances(pos1, pos2);
+    if (!warp || distance <= optDistance) {
+        return distance;
+    }
+    const absDiffs = {
+        x: Math.abs(dx),
+        y: Math.abs(dy),
+    }, warpDistances = {
+        x: Math.min(absDiffs.x, canvasSize.width - absDiffs.x),
+        y: Math.min(absDiffs.y, canvasSize.height - absDiffs.y),
+    };
+    return Math.sqrt(warpDistances.x ** 2 + warpDistances.y ** 2);
+}
+class Linker extends ParticlesInteractorBase {
+    constructor(container) {
+        super(container);
+        this._setColor = (p1) => {
+            if (!p1.options.links) {
+                return;
+            }
+            const container = this.linkContainer, linksOptions = p1.options.links;
+            let linkColor = linksOptions.id === undefined
+                ? container.particles.linksColor
+                : container.particles.linksColors.get(linksOptions.id);
+            if (linkColor) {
+                return;
+            }
+            const optColor = linksOptions.color;
+            linkColor = getLinkRandomColor(optColor, linksOptions.blink, linksOptions.consent);
+            if (linksOptions.id === undefined) {
+                container.particles.linksColor = linkColor;
+            }
+            else {
+                container.particles.linksColors.set(linksOptions.id, linkColor);
+            }
+        };
+        this.linkContainer = container;
+    }
+    clear() {
+    }
+    init() {
+        this.linkContainer.particles.linksColor = undefined;
+        this.linkContainer.particles.linksColors = new Map();
+    }
+    async interact(p1) {
+        if (!p1.options.links) {
+            return;
+        }
+        p1.links = [];
+        const pos1 = p1.getPosition(), container = this.container, canvasSize = container.canvas.size;
+        if (pos1.x < 0 || pos1.y < 0 || pos1.x > canvasSize.width || pos1.y > canvasSize.height) {
+            return;
+        }
+        const linkOpt1 = p1.options.links, optOpacity = linkOpt1.opacity, optDistance = p1.retina.linksDistance ?? 0, warp = linkOpt1.warp, range = warp
+            ? new CircleWarp(pos1.x, pos1.y, optDistance, canvasSize)
+            : new Circle(pos1.x, pos1.y, optDistance), query = container.particles.quadTree.query(range);
+        for (const p2 of query) {
+            const linkOpt2 = p2.options.links;
+            if (p1 === p2 ||
+                !linkOpt2?.enable ||
+                linkOpt1.id !== linkOpt2.id ||
+                p2.spawning ||
+                p2.destroyed ||
+                !p2.links ||
+                p1.links.some((t) => t.destination === p2) ||
+                p2.links.some((t) => t.destination === p1)) {
+                continue;
+            }
+            const pos2 = p2.getPosition();
+            if (pos2.x < 0 || pos2.y < 0 || pos2.x > canvasSize.width || pos2.y > canvasSize.height) {
+                continue;
+            }
+            const distance = getLinkDistance(pos1, pos2, optDistance, canvasSize, warp && linkOpt2.warp);
+            if (distance > optDistance) {
+                continue;
+            }
+            const opacityLine = (1 - distance / optDistance) * optOpacity;
+            this._setColor(p1);
+            p1.links.push({
+                destination: p2,
+                opacity: opacityLine,
+            });
+        }
+    }
+    isEnabled(particle) {
+        return !!particle.options.links?.enable;
+    }
+    loadParticlesOptions(options, ...sources) {
+        if (!options.links) {
+            options.links = new Links();
+        }
+        for (const source of sources) {
+            options.links.load(source?.links ?? source?.lineLinked ?? source?.line_linked);
+        }
+    }
+    reset() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-links/esm/interaction.js
+
+async function loadInteraction(engine) {
+    await engine.addInteractor("particlesLinks", (container) => new Linker(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-links/esm/Utils.js
+
+function drawLinkLine(params) {
+    let drawn = false;
+    const { begin, end, maxDistance, context, canvasSize, width, backgroundMask, colorLine, opacity, links } = params;
+    if (getDistance(begin, end) <= maxDistance) {
+        drawLine(context, begin, end);
+        drawn = true;
+    }
+    else if (links.warp) {
+        let pi1;
+        let pi2;
+        const endNE = {
+            x: end.x - canvasSize.width,
+            y: end.y,
+        };
+        const d1 = getDistances(begin, endNE);
+        if (d1.distance <= maxDistance) {
+            const yi = begin.y - (d1.dy / d1.dx) * begin.x;
+            pi1 = { x: 0, y: yi };
+            pi2 = { x: canvasSize.width, y: yi };
+        }
+        else {
+            const endSW = {
+                x: end.x,
+                y: end.y - canvasSize.height,
+            };
+            const d2 = getDistances(begin, endSW);
+            if (d2.distance <= maxDistance) {
+                const yi = begin.y - (d2.dy / d2.dx) * begin.x;
+                const xi = -yi / (d2.dy / d2.dx);
+                pi1 = { x: xi, y: 0 };
+                pi2 = { x: xi, y: canvasSize.height };
+            }
+            else {
+                const endSE = {
+                    x: end.x - canvasSize.width,
+                    y: end.y - canvasSize.height,
+                };
+                const d3 = getDistances(begin, endSE);
+                if (d3.distance <= maxDistance) {
+                    const yi = begin.y - (d3.dy / d3.dx) * begin.x;
+                    const xi = -yi / (d3.dy / d3.dx);
+                    pi1 = { x: xi, y: yi };
+                    pi2 = { x: pi1.x + canvasSize.width, y: pi1.y + canvasSize.height };
+                }
+            }
+        }
+        if (pi1 && pi2) {
+            drawLine(context, begin, pi1);
+            drawLine(context, end, pi2);
+            drawn = true;
+        }
+    }
+    if (!drawn) {
+        return;
+    }
+    context.lineWidth = width;
+    if (backgroundMask.enable) {
+        context.globalCompositeOperation = backgroundMask.composite;
+    }
+    context.strokeStyle = getStyleFromRgb(colorLine, opacity);
+    const { shadow } = links;
+    if (shadow.enable) {
+        const shadowColor = rangeColorToRgb(shadow.color);
+        if (shadowColor) {
+            context.shadowBlur = shadow.blur;
+            context.shadowColor = getStyleFromRgb(shadowColor);
+        }
+    }
+    context.stroke();
+}
+function drawLinkTriangle(params) {
+    const { context, pos1, pos2, pos3, backgroundMask, colorTriangle, opacityTriangle } = params;
+    drawTriangle(context, pos1, pos2, pos3);
+    if (backgroundMask.enable) {
+        context.globalCompositeOperation = backgroundMask.composite;
+    }
+    context.fillStyle = getStyleFromRgb(colorTriangle, opacityTriangle);
+    context.fill();
+}
+function getLinkKey(ids) {
+    ids.sort((a, b) => a - b);
+    return ids.join("_");
+}
+function setLinkFrequency(particles, dictionary) {
+    const key = getLinkKey(particles.map((t) => t.id));
+    let res = dictionary.get(key);
+    if (res === undefined) {
+        res = getRandom();
+        dictionary.set(key, res);
+    }
+    return res;
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-links/esm/LinkInstance.js
+
+
+class LinkInstance {
+    constructor(container) {
+        this.container = container;
+        this._drawLinkLine = (p1, link) => {
+            const container = this.container, options = container.actualOptions, p2 = link.destination, pos1 = p1.getPosition(), pos2 = p2.getPosition();
+            let opacity = link.opacity;
+            container.canvas.draw((ctx) => {
+                if (!p1.options.links) {
+                    return;
+                }
+                let colorLine;
+                const twinkle = p1.options.twinkle?.lines;
+                if (twinkle?.enable) {
+                    const twinkleFreq = twinkle.frequency, twinkleRgb = rangeColorToRgb(twinkle.color), twinkling = getRandom() < twinkleFreq;
+                    if (twinkling && twinkleRgb) {
+                        colorLine = twinkleRgb;
+                        opacity = getRangeValue(twinkle.opacity);
+                    }
+                }
+                const p1LinksOptions = p1.options.links;
+                if (!colorLine) {
+                    const linkColor = p1LinksOptions?.id !== undefined
+                        ? container.particles.linksColors.get(p1LinksOptions.id)
+                        : container.particles.linksColor;
+                    colorLine = getLinkColor(p1, p2, linkColor);
+                }
+                if (!colorLine) {
+                    return;
+                }
+                const width = p1.retina.linksWidth ?? 0, maxDistance = p1.retina.linksDistance ?? 0, { backgroundMask } = options;
+                drawLinkLine({
+                    context: ctx,
+                    width,
+                    begin: pos1,
+                    end: pos2,
+                    maxDistance,
+                    canvasSize: container.canvas.size,
+                    links: p1LinksOptions,
+                    backgroundMask: backgroundMask,
+                    colorLine,
+                    opacity,
+                });
+            });
+        };
+        this._drawLinkTriangle = (p1, link1, link2) => {
+            if (!p1.options.links) {
+                return;
+            }
+            const container = this.container, options = container.actualOptions, p2 = link1.destination, p3 = link2.destination, triangleOptions = p1.options.links.triangles, opacityTriangle = triangleOptions.opacity ?? (link1.opacity + link2.opacity) / 2;
+            if (opacityTriangle <= 0) {
+                return;
+            }
+            container.canvas.draw((ctx) => {
+                const pos1 = p1.getPosition(), pos2 = p2.getPosition(), pos3 = p3.getPosition(), linksDistance = p1.retina.linksDistance ?? 0;
+                if (getDistance(pos1, pos2) > linksDistance ||
+                    getDistance(pos3, pos2) > linksDistance ||
+                    getDistance(pos3, pos1) > linksDistance) {
+                    return;
+                }
+                let colorTriangle = rangeColorToRgb(triangleOptions.color);
+                if (!colorTriangle) {
+                    const linksOptions = p1.options.links, linkColor = linksOptions?.id !== undefined
+                        ? container.particles.linksColors.get(linksOptions.id)
+                        : container.particles.linksColor;
+                    colorTriangle = getLinkColor(p1, p2, linkColor);
+                }
+                if (!colorTriangle) {
+                    return;
+                }
+                drawLinkTriangle({
+                    context: ctx,
+                    pos1,
+                    pos2,
+                    pos3,
+                    backgroundMask: options.backgroundMask,
+                    colorTriangle,
+                    opacityTriangle,
+                });
+            });
+        };
+        this._drawTriangles = (options, p1, link, p1Links) => {
+            const p2 = link.destination;
+            if (!(options.links?.triangles.enable && p2.options.links?.triangles.enable)) {
+                return;
+            }
+            const vertices = p2.links?.filter((t) => {
+                const linkFreq = this._getLinkFrequency(p2, t.destination);
+                return (p2.options.links &&
+                    linkFreq <= p2.options.links.frequency &&
+                    p1Links.findIndex((l) => l.destination === t.destination) >= 0);
+            });
+            if (!vertices?.length) {
+                return;
+            }
+            for (const vertex of vertices) {
+                const p3 = vertex.destination, triangleFreq = this._getTriangleFrequency(p1, p2, p3);
+                if (triangleFreq > options.links.triangles.frequency) {
+                    continue;
+                }
+                this._drawLinkTriangle(p1, link, vertex);
+            }
+        };
+        this._getLinkFrequency = (p1, p2) => {
+            return setLinkFrequency([p1, p2], this._freqs.links);
+        };
+        this._getTriangleFrequency = (p1, p2, p3) => {
+            return setLinkFrequency([p1, p2, p3], this._freqs.triangles);
+        };
+        this._freqs = {
+            links: new Map(),
+            triangles: new Map(),
+        };
+    }
+    drawParticle(context, particle) {
+        const { links, options } = particle;
+        if (!links || links.length <= 0) {
+            return;
+        }
+        const p1Links = links.filter((l) => options.links && this._getLinkFrequency(particle, l.destination) <= options.links.frequency);
+        for (const link of p1Links) {
+            this._drawTriangles(options, particle, link, p1Links);
+            if (link.opacity > 0 && (particle.retina.linksWidth ?? 0) > 0) {
+                this._drawLinkLine(particle, link);
+            }
+        }
+    }
+    async init() {
+        this._freqs.links = new Map();
+        this._freqs.triangles = new Map();
+    }
+    particleCreated(particle) {
+        particle.links = [];
+        if (!particle.options.links) {
+            return;
+        }
+        const ratio = this.container.retina.pixelRatio, { retina } = particle, { distance, width } = particle.options.links;
+        retina.linksDistance = distance * ratio;
+        retina.linksWidth = width * ratio;
+    }
+    particleDestroyed(particle) {
+        particle.links = [];
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-links/esm/plugin.js
+
+class LinksPlugin {
+    constructor() {
+        this.id = "links";
+    }
+    getPlugin(container) {
+        return new LinkInstance(container);
+    }
+    loadOptions() {
+    }
+    needsPlugin() {
+        return true;
+    }
+}
+async function loadPlugin(engine) {
+    const plugin = new LinksPlugin();
+    await engine.addPlugin(plugin);
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-interaction-particles-links/esm/index.js
+
+
+async function loadParticlesLinksInteraction(engine) {
+    await loadInteraction(engine);
+    await loadPlugin(engine);
+}
+
+
+
+
+
+
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-polygon/esm/PolygonDrawerBase.js
+
+class PolygonDrawerBase {
+    draw(context, particle, radius) {
+        const start = this.getCenter(particle, radius), side = this.getSidesData(particle, radius), sideCount = side.count.numerator * side.count.denominator, decimalSides = side.count.numerator / side.count.denominator, interiorAngleDegrees = (180 * (decimalSides - 2)) / decimalSides, interiorAngle = Math.PI - (Math.PI * interiorAngleDegrees) / 180;
+        if (!context) {
+            return;
+        }
+        context.beginPath();
+        context.translate(start.x, start.y);
+        context.moveTo(0, 0);
+        for (let i = 0; i < sideCount; i++) {
+            context.lineTo(side.length, 0);
+            context.translate(side.length, 0);
+            context.rotate(interiorAngle);
+        }
+    }
+    getSidesCount(particle) {
+        const polygon = particle.shapeData, sides = Math.round(getRangeValue(polygon?.sides ?? polygon?.nb_sides ?? 5));
+        return sides;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-polygon/esm/PolygonDrawer.js
+
+class PolygonDrawer extends PolygonDrawerBase {
+    getCenter(particle, radius) {
+        return {
+            x: -radius / (particle.sides / 3.5),
+            y: -radius / (2.66 / 3.5),
+        };
+    }
+    getSidesData(particle, radius) {
+        const sides = particle.sides;
+        return {
+            count: {
+                denominator: 1,
+                numerator: sides,
+            },
+            length: (radius * 2.66) / (sides / 3),
+        };
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-polygon/esm/TriangleDrawer.js
+
+class TriangleDrawer extends PolygonDrawerBase {
+    getCenter(particle, radius) {
+        return {
+            x: -radius,
+            y: radius / 1.66,
+        };
+    }
+    getSidesCount() {
+        return 3;
+    }
+    getSidesData(particle, radius) {
+        return {
+            count: {
+                denominator: 2,
+                numerator: 3,
+            },
+            length: radius * 2,
+        };
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-polygon/esm/index.js
+
+
+async function loadGenericPolygonShape(engine) {
+    await engine.addShape("polygon", new PolygonDrawer());
+}
+async function loadTriangleShape(engine) {
+    await engine.addShape("triangle", new TriangleDrawer());
+}
+async function loadPolygonShape(engine) {
+    await loadGenericPolygonShape(engine);
+    await loadTriangleShape(engine);
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-rotate/esm/Options/Classes/RotateAnimation.js
+
+class RotateAnimation {
+    constructor() {
+        this.enable = false;
+        this.speed = 0;
+        this.decay = 0;
+        this.sync = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.speed !== undefined) {
+            this.speed = NumberUtils_setRangeValue(data.speed);
+        }
+        if (data.decay !== undefined) {
+            this.decay = NumberUtils_setRangeValue(data.decay);
+        }
+        if (data.sync !== undefined) {
+            this.sync = data.sync;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-rotate/esm/Options/Classes/Rotate.js
+
+
+class Rotate extends ValueWithRandom {
+    constructor() {
+        super();
+        this.animation = new RotateAnimation();
+        this.direction = "clockwise";
+        this.path = false;
+        this.value = 0;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        super.load(data);
+        if (data.direction !== undefined) {
+            this.direction = data.direction;
+        }
+        this.animation.load(data.animation);
+        if (data.path !== undefined) {
+            this.path = data.path;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-rotate/esm/RotateUpdater.js
+
+
+function updateRotate(particle, delta) {
+    const rotate = particle.rotate, rotateOptions = particle.options.rotate;
+    if (!rotate || !rotateOptions) {
+        return;
+    }
+    const rotateAnimation = rotateOptions.animation, speed = (rotate.velocity ?? 0) * delta.factor, max = 2 * Math.PI, decay = rotate.decay ?? 1;
+    if (!rotateAnimation.enable) {
+        return;
+    }
+    switch (rotate.status) {
+        case "increasing":
+            rotate.value += speed;
+            if (rotate.value > max) {
+                rotate.value -= max;
+            }
+            break;
+        case "decreasing":
+        default:
+            rotate.value -= speed;
+            if (rotate.value < 0) {
+                rotate.value += max;
+            }
+            break;
+    }
+    if (rotate.velocity && decay !== 1) {
+        rotate.velocity *= decay;
+    }
+}
+class RotateUpdater {
+    constructor(container) {
+        this.container = container;
+    }
+    init(particle) {
+        const rotateOptions = particle.options.rotate;
+        if (!rotateOptions) {
+            return;
+        }
+        particle.rotate = {
+            enable: rotateOptions.animation.enable,
+            value: (getRangeValue(rotateOptions.value) * Math.PI) / 180,
+        };
+        particle.pathRotation = rotateOptions.path;
+        let rotateDirection = rotateOptions.direction;
+        if (rotateDirection === "random") {
+            const index = Math.floor(getRandom() * 2);
+            rotateDirection = index > 0 ? "counter-clockwise" : "clockwise";
+        }
+        switch (rotateDirection) {
+            case "counter-clockwise":
+            case "counterClockwise":
+                particle.rotate.status = "decreasing";
+                break;
+            case "clockwise":
+                particle.rotate.status = "increasing";
+                break;
+        }
+        const rotateAnimation = rotateOptions.animation;
+        if (rotateAnimation.enable) {
+            particle.rotate.decay = 1 - getRangeValue(rotateAnimation.decay);
+            particle.rotate.velocity =
+                (getRangeValue(rotateAnimation.speed) / 360) * this.container.retina.reduceFactor;
+            if (!rotateAnimation.sync) {
+                particle.rotate.velocity *= getRandom();
+            }
+        }
+        particle.rotation = particle.rotate.value;
+    }
+    isEnabled(particle) {
+        const rotate = particle.options.rotate;
+        if (!rotate) {
+            return false;
+        }
+        return !particle.destroyed && !particle.spawning && rotate.animation.enable && !rotate.path;
+    }
+    loadOptions(options, ...sources) {
+        if (!options.rotate) {
+            options.rotate = new Rotate();
+        }
+        for (const source of sources) {
+            options.rotate.load(source?.rotate);
+        }
+    }
+    update(particle, delta) {
+        if (!this.isEnabled(particle)) {
+            return;
+        }
+        updateRotate(particle, delta);
+        particle.rotation = particle.rotate?.value ?? 0;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-rotate/esm/index.js
+
+async function loadRotateUpdater(engine) {
+    await engine.addParticleUpdater("rotate", (container) => new RotateUpdater(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-size/esm/Utils.js
+
+function Utils_checkDestroy(particle, value, minValue, maxValue) {
+    switch (particle.options.size.animation.destroy) {
+        case "max":
+            if (value >= maxValue) {
+                particle.destroy();
+            }
+            break;
+        case "min":
+            if (value <= minValue) {
+                particle.destroy();
+            }
+            break;
+    }
+}
+function updateSize(particle, delta) {
+    const data = particle.size;
+    if (particle.destroyed ||
+        !data ||
+        !data.enable ||
+        ((data.maxLoops ?? 0) > 0 && (data.loops ?? 0) > (data.maxLoops ?? 0))) {
+        return;
+    }
+    const sizeVelocity = (data.velocity ?? 0) * delta.factor, minValue = data.min, maxValue = data.max, decay = data.decay ?? 1;
+    if (!data.time) {
+        data.time = 0;
+    }
+    if ((data.delayTime ?? 0) > 0 && data.time < (data.delayTime ?? 0)) {
+        data.time += delta.value;
+    }
+    if ((data.delayTime ?? 0) > 0 && data.time < (data.delayTime ?? 0)) {
+        return;
+    }
+    switch (data.status) {
+        case "increasing":
+            if (data.value >= maxValue) {
+                data.status = "decreasing";
+                if (!data.loops) {
+                    data.loops = 0;
+                }
+                data.loops++;
+            }
+            else {
+                data.value += sizeVelocity;
+            }
+            break;
+        case "decreasing":
+            if (data.value <= minValue) {
+                data.status = "increasing";
+                if (!data.loops) {
+                    data.loops = 0;
+                }
+                data.loops++;
+            }
+            else {
+                data.value -= sizeVelocity;
+            }
+    }
+    if (data.velocity && decay !== 1) {
+        data.velocity *= decay;
+    }
+    Utils_checkDestroy(particle, data.value, minValue, maxValue);
+    if (!particle.destroyed) {
+        data.value = clamp(data.value, minValue, maxValue);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-size/esm/SizeUpdater.js
+
+
+class SizeUpdater {
+    init(particle) {
+        const container = particle.container, sizeOptions = particle.options.size, sizeAnimation = sizeOptions.animation;
+        if (sizeAnimation.enable) {
+            particle.size.velocity =
+                ((particle.retina.sizeAnimationSpeed ?? container.retina.sizeAnimationSpeed) / 100) *
+                    container.retina.reduceFactor;
+            if (!sizeAnimation.sync) {
+                particle.size.velocity *= getRandom();
+            }
+        }
+    }
+    isEnabled(particle) {
+        return (!particle.destroyed &&
+            !particle.spawning &&
+            particle.size.enable &&
+            ((particle.size.maxLoops ?? 0) <= 0 ||
+                ((particle.size.maxLoops ?? 0) > 0 && (particle.size.loops ?? 0) < (particle.size.maxLoops ?? 0))));
+    }
+    reset(particle) {
+        particle.size.loops = 0;
+    }
+    update(particle, delta) {
+        if (!this.isEnabled(particle)) {
+            return;
+        }
+        updateSize(particle, delta);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-size/esm/index.js
+
+async function loadSizeUpdater(engine) {
+    await engine.addParticleUpdater("size", () => new SizeUpdater());
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-square/esm/SquareDrawer.js
+const fixFactor = Math.sqrt(2);
+class SquareDrawer {
+    draw(context, particle, radius) {
+        context.rect(-radius / fixFactor, -radius / fixFactor, (radius * 2) / fixFactor, (radius * 2) / fixFactor);
+    }
+    getSidesCount() {
+        return 4;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-square/esm/index.js
+
+async function loadSquareShape(engine) {
+    const drawer = new SquareDrawer();
+    await engine.addShape(["edge", "square"], drawer);
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-star/esm/StarDrawer.js
+
+class StarDrawer {
+    draw(context, particle, radius) {
+        const sides = particle.sides, inset = particle.starInset ?? 2;
+        context.moveTo(0, 0 - radius);
+        for (let i = 0; i < sides; i++) {
+            context.rotate(Math.PI / sides);
+            context.lineTo(0, 0 - radius * inset);
+            context.rotate(Math.PI / sides);
+            context.lineTo(0, 0 - radius);
+        }
+    }
+    getSidesCount(particle) {
+        const star = particle.shapeData;
+        return Math.round(getRangeValue(star?.sides ?? star?.nb_sides ?? 5));
+    }
+    particleInit(container, particle) {
+        const star = particle.shapeData, inset = getRangeValue(star?.inset ?? 2);
+        particle.starInset = inset;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-star/esm/index.js
+
+async function loadStarShape(engine) {
+    await engine.addShape("star", new StarDrawer());
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-stroke-color/esm/Utils.js
+
+function Utils_updateColorValue(delta, colorValue, valueAnimation, max, decrease) {
+    if (!colorValue ||
+        !valueAnimation.enable ||
+        ((colorValue.maxLoops ?? 0) > 0 && (colorValue.loops ?? 0) > (colorValue.maxLoops ?? 0))) {
+        return;
+    }
+    if (!colorValue.time) {
+        colorValue.time = 0;
+    }
+    if ((colorValue.delayTime ?? 0) > 0 && colorValue.time < (colorValue.delayTime ?? 0)) {
+        colorValue.time += delta.value;
+    }
+    if ((colorValue.delayTime ?? 0) > 0 && colorValue.time < (colorValue.delayTime ?? 0)) {
+        return;
+    }
+    const offset = randomInRange(valueAnimation.offset), velocity = (colorValue.velocity ?? 0) * delta.factor + offset * 3.6, decay = colorValue.decay ?? 1;
+    if (!decrease || colorValue.status === "increasing") {
+        colorValue.value += velocity;
+        if (colorValue.value > max) {
+            if (!colorValue.loops) {
+                colorValue.loops = 0;
+            }
+            colorValue.loops++;
+            if (decrease) {
+                colorValue.status = "decreasing";
+                colorValue.value -= colorValue.value % max;
+            }
+        }
+    }
+    else {
+        colorValue.value -= velocity;
+        if (colorValue.value < 0) {
+            if (!colorValue.loops) {
+                colorValue.loops = 0;
+            }
+            colorValue.loops++;
+            colorValue.status = "increasing";
+            colorValue.value += colorValue.value;
+        }
+    }
+    if (colorValue.velocity && decay !== 1) {
+        colorValue.velocity *= decay;
+    }
+    if (colorValue.value > max) {
+        colorValue.value %= max;
+    }
+}
+function updateStrokeColor(particle, delta) {
+    if (!particle.strokeColor || !particle.strokeAnimation) {
+        return;
+    }
+    const { h, s, l } = particle.strokeColor, { h: hAnimation, s: sAnimation, l: lAnimation } = particle.strokeAnimation;
+    if (h) {
+        Utils_updateColorValue(delta, h, hAnimation, 360, false);
+    }
+    if (s) {
+        Utils_updateColorValue(delta, s, sAnimation, 100, true);
+    }
+    if (l) {
+        Utils_updateColorValue(delta, l, lAnimation, 100, true);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-stroke-color/esm/StrokeColorUpdater.js
+
+
+class StrokeColorUpdater {
+    constructor(container) {
+        this.container = container;
+    }
+    init(particle) {
+        const container = this.container, options = particle.options;
+        const stroke = itemFromSingleOrMultiple(options.stroke, particle.id, options.reduceDuplicates);
+        particle.strokeWidth = getRangeValue(stroke.width) * container.retina.pixelRatio;
+        particle.strokeOpacity = getRangeValue(stroke.opacity ?? 1);
+        particle.strokeAnimation = stroke.color?.animation;
+        const strokeHslColor = rangeColorToHsl(stroke.color) ?? particle.getFillColor();
+        if (strokeHslColor) {
+            particle.strokeColor = getHslAnimationFromHsl(strokeHslColor, particle.strokeAnimation, container.retina.reduceFactor);
+        }
+    }
+    isEnabled(particle) {
+        const color = particle.strokeAnimation, { strokeColor } = particle;
+        return (!particle.destroyed &&
+            !particle.spawning &&
+            !!color &&
+            ((strokeColor?.h.value !== undefined && strokeColor.h.enable) ||
+                (strokeColor?.s.value !== undefined && strokeColor.s.enable) ||
+                (strokeColor?.l.value !== undefined && strokeColor.l.enable)));
+    }
+    update(particle, delta) {
+        if (!this.isEnabled(particle)) {
+            return;
+        }
+        updateStrokeColor(particle, delta);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-stroke-color/esm/index.js
+
+async function loadStrokeColorUpdater(engine) {
+    await engine.addParticleUpdater("strokeColor", (container) => new StrokeColorUpdater(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-text/esm/TextDrawer.js
+
+const validTypes = ["text", "character", "char"];
+class TextDrawer {
+    draw(context, particle, radius, opacity) {
+        const character = particle.shapeData;
+        if (character === undefined) {
+            return;
+        }
+        const textData = character.value;
+        if (textData === undefined) {
+            return;
+        }
+        if (particle.text === undefined) {
+            particle.text = itemFromSingleOrMultiple(textData, particle.randomIndexData);
+        }
+        const text = particle.text, style = character.style ?? "", weight = character.weight ?? "400", size = Math.round(radius) * 2, font = character.font ?? "Verdana", fill = particle.fill, offsetX = (text.length * radius) / 2;
+        context.font = `${style} ${weight} ${size}px "${font}"`;
+        const pos = {
+            x: -offsetX,
+            y: radius / 2,
+        };
+        context.globalAlpha = opacity;
+        if (fill) {
+            context.fillText(text, pos.x, pos.y);
+        }
+        else {
+            context.strokeText(text, pos.x, pos.y);
+        }
+        context.globalAlpha = 1;
+    }
+    getSidesCount() {
+        return 12;
+    }
+    async init(container) {
+        const options = container.actualOptions;
+        if (validTypes.find((t) => isInArray(t, options.particles.shape.type))) {
+            const shapeOptions = validTypes
+                .map((t) => options.particles.shape.options[t])
+                .find((t) => !!t), promises = [];
+            executeOnSingleOrMultiple(shapeOptions, (shape) => {
+                promises.push(loadFont(shape.font, shape.weight));
+            });
+            await Promise.all(promises);
+        }
+    }
+    particleInit(container, particle) {
+        if (!particle.shape || !validTypes.includes(particle.shape)) {
+            return;
+        }
+        const character = particle.shapeData;
+        if (character === undefined) {
+            return;
+        }
+        const textData = character.value;
+        if (textData === undefined) {
+            return;
+        }
+        particle.text = itemFromSingleOrMultiple(textData, particle.randomIndexData);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-shape-text/esm/index.js
+
+async function loadTextShape(engine) {
+    await engine.addShape(validTypes, new TextDrawer());
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-slim/esm/index.js
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+async function loadSlim(engine) {
+    await loadBaseMover(engine);
+    await loadParallaxMover(engine);
+    await loadExternalAttractInteraction(engine);
+    await loadExternalBounceInteraction(engine);
+    await loadExternalBubbleInteraction(engine);
+    await loadExternalConnectInteraction(engine);
+    await loadExternalGrabInteraction(engine);
+    await loadExternalPauseInteraction(engine);
+    await loadExternalPushInteraction(engine);
+    await loadExternalRemoveInteraction(engine);
+    await loadExternalRepulseInteraction(engine);
+    await loadExternalSlowInteraction(engine);
+    await loadParticlesAttractInteraction(engine);
+    await loadParticlesCollisionsInteraction(engine);
+    await loadParticlesLinksInteraction(engine);
+    await loadCircleShape(engine);
+    await loadImageShape(engine);
+    await loadLineShape(engine);
+    await loadPolygonShape(engine);
+    await loadSquareShape(engine);
+    await loadStarShape(engine);
+    await loadTextShape(engine);
+    await loadLifeUpdater(engine);
+    await loadOpacityUpdater(engine);
+    await loadSizeUpdater(engine);
+    await loadColorUpdater(engine);
+    await loadOutModesUpdater(engine);
+    await loadRotateUpdater(engine);
+    await loadStrokeColorUpdater(engine);
+    await initPjs(engine);
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-tilt/esm/Options/Classes/TiltAnimation.js
+
+class TiltAnimation {
+    constructor() {
+        this.enable = false;
+        this.speed = 0;
+        this.decay = 0;
+        this.sync = false;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.speed !== undefined) {
+            this.speed = NumberUtils_setRangeValue(data.speed);
+        }
+        if (data.decay !== undefined) {
+            this.decay = NumberUtils_setRangeValue(data.decay);
+        }
+        if (data.sync !== undefined) {
+            this.sync = data.sync;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-tilt/esm/Options/Classes/Tilt.js
+
+
+class Tilt extends ValueWithRandom {
+    constructor() {
+        super();
+        this.animation = new TiltAnimation();
+        this.direction = "clockwise";
+        this.enable = false;
+        this.value = 0;
+    }
+    load(data) {
+        super.load(data);
+        if (!data) {
+            return;
+        }
+        this.animation.load(data.animation);
+        if (data.direction !== undefined) {
+            this.direction = data.direction;
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-tilt/esm/Utils.js
+function updateTilt(particle, delta) {
+    if (!particle.tilt || !particle.options.tilt) {
+        return;
+    }
+    const tilt = particle.options.tilt, tiltAnimation = tilt.animation, speed = (particle.tilt.velocity ?? 0) * delta.factor, max = 2 * Math.PI, decay = particle.tilt.decay ?? 1;
+    if (!tiltAnimation.enable) {
+        return;
+    }
+    switch (particle.tilt.status) {
+        case "increasing":
+            particle.tilt.value += speed;
+            if (particle.tilt.value > max) {
+                particle.tilt.value -= max;
+            }
+            break;
+        case "decreasing":
+        default:
+            particle.tilt.value -= speed;
+            if (particle.tilt.value < 0) {
+                particle.tilt.value += max;
+            }
+            break;
+    }
+    if (particle.tilt.velocity && decay !== 1) {
+        particle.tilt.velocity *= decay;
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-tilt/esm/TiltUpdater.js
+
+
+
+class TiltUpdater {
+    constructor(container) {
+        this.container = container;
+    }
+    getTransformValues(particle) {
+        const tilt = particle.tilt?.enable && particle.tilt;
+        return {
+            b: tilt ? Math.cos(tilt.value) * tilt.cosDirection : undefined,
+            c: tilt ? Math.sin(tilt.value) * tilt.sinDirection : undefined,
+        };
+    }
+    init(particle) {
+        const tiltOptions = particle.options.tilt;
+        if (!tiltOptions) {
+            return;
+        }
+        particle.tilt = {
+            enable: tiltOptions.enable,
+            value: (getRangeValue(tiltOptions.value) * Math.PI) / 180,
+            sinDirection: getRandom() >= 0.5 ? 1 : -1,
+            cosDirection: getRandom() >= 0.5 ? 1 : -1,
+        };
+        let tiltDirection = tiltOptions.direction;
+        if (tiltDirection === "random") {
+            const index = Math.floor(getRandom() * 2);
+            tiltDirection = index > 0 ? "counter-clockwise" : "clockwise";
+        }
+        switch (tiltDirection) {
+            case "counter-clockwise":
+            case "counterClockwise":
+                particle.tilt.status = "decreasing";
+                break;
+            case "clockwise":
+                particle.tilt.status = "increasing";
+                break;
+        }
+        const tiltAnimation = particle.options.tilt?.animation;
+        if (tiltAnimation?.enable) {
+            particle.tilt.decay = 1 - getRangeValue(tiltAnimation.decay);
+            particle.tilt.velocity = (getRangeValue(tiltAnimation.speed) / 360) * this.container.retina.reduceFactor;
+            if (!tiltAnimation.sync) {
+                particle.tilt.velocity *= getRandom();
+            }
+        }
+    }
+    isEnabled(particle) {
+        const tiltAnimation = particle.options.tilt?.animation;
+        return !particle.destroyed && !particle.spawning && !!tiltAnimation?.enable;
+    }
+    loadOptions(options, ...sources) {
+        if (!options.tilt) {
+            options.tilt = new Tilt();
+        }
+        for (const source of sources) {
+            options.tilt.load(source?.tilt);
+        }
+    }
+    update(particle, delta) {
+        if (!this.isEnabled(particle)) {
+            return;
+        }
+        updateTilt(particle, delta);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-tilt/esm/index.js
+
+async function loadTiltUpdater(engine) {
+    await engine.addParticleUpdater("tilt", (container) => new TiltUpdater(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-twinkle/esm/Options/Classes/TwinkleValues.js
+
+class TwinkleValues {
+    constructor() {
+        this.enable = false;
+        this.frequency = 0.05;
+        this.opacity = 1;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.color !== undefined) {
+            this.color = OptionsColor.create(this.color, data.color);
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.frequency !== undefined) {
+            this.frequency = data.frequency;
+        }
+        if (data.opacity !== undefined) {
+            this.opacity = NumberUtils_setRangeValue(data.opacity);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-twinkle/esm/Options/Classes/Twinkle.js
+
+class Twinkle {
+    constructor() {
+        this.lines = new TwinkleValues();
+        this.particles = new TwinkleValues();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        this.lines.load(data.lines);
+        this.particles.load(data.particles);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-twinkle/esm/TwinkleUpdater.js
+
+
+class TwinkleUpdater {
+    getColorStyles(particle, context, radius, opacity) {
+        const pOptions = particle.options, twinkleOptions = pOptions.twinkle;
+        if (!twinkleOptions) {
+            return {};
+        }
+        const twinkle = twinkleOptions.particles, twinkling = twinkle.enable && getRandom() < twinkle.frequency, zIndexOptions = particle.options.zIndex, zOpacityFactor = (1 - particle.zIndexFactor) ** zIndexOptions.opacityRate, twinklingOpacity = twinkling ? getRangeValue(twinkle.opacity) * zOpacityFactor : opacity, twinkleRgb = rangeColorToHsl(twinkle.color), twinkleStyle = twinkleRgb ? getStyleFromHsl(twinkleRgb, twinklingOpacity) : undefined, res = {}, needsTwinkle = twinkling && twinkleStyle;
+        res.fill = needsTwinkle ? twinkleStyle : undefined;
+        res.stroke = needsTwinkle ? twinkleStyle : undefined;
+        return res;
+    }
+    init() {
+    }
+    isEnabled(particle) {
+        const pOptions = particle.options, twinkleOptions = pOptions.twinkle;
+        if (!twinkleOptions) {
+            return false;
+        }
+        return twinkleOptions.particles.enable;
+    }
+    loadOptions(options, ...sources) {
+        if (!options.twinkle) {
+            options.twinkle = new Twinkle();
+        }
+        for (const source of sources) {
+            options.twinkle.load(source?.twinkle);
+        }
+    }
+    update() {
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-twinkle/esm/index.js
+
+async function loadTwinkleUpdater(engine) {
+    await engine.addParticleUpdater("twinkle", () => new TwinkleUpdater());
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-wobble/esm/Options/Classes/WobbleSpeed.js
+
+class WobbleSpeed {
+    constructor() {
+        this.angle = 50;
+        this.move = 10;
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.angle !== undefined) {
+            this.angle = NumberUtils_setRangeValue(data.angle);
+        }
+        if (data.move !== undefined) {
+            this.move = NumberUtils_setRangeValue(data.move);
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-wobble/esm/Options/Classes/Wobble.js
+
+
+class Wobble {
+    constructor() {
+        this.distance = 5;
+        this.enable = false;
+        this.speed = new WobbleSpeed();
+    }
+    load(data) {
+        if (!data) {
+            return;
+        }
+        if (data.distance !== undefined) {
+            this.distance = NumberUtils_setRangeValue(data.distance);
+        }
+        if (data.enable !== undefined) {
+            this.enable = data.enable;
+        }
+        if (data.speed !== undefined) {
+            if (typeof data.speed === "number") {
+                this.speed.load({ angle: data.speed });
+            }
+            else {
+                const rangeSpeed = data.speed;
+                if (rangeSpeed.min !== undefined) {
+                    this.speed.load({ angle: rangeSpeed });
+                }
+                else {
+                    this.speed.load(data.speed);
+                }
+            }
+        }
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-wobble/esm/Utils.js
+function updateWobble(particle, delta) {
+    const { wobble: wobbleOptions } = particle.options, { wobble } = particle;
+    if (!wobbleOptions?.enable || !wobble) {
+        return;
+    }
+    const angleSpeed = wobble.angleSpeed * delta.factor, moveSpeed = wobble.moveSpeed * delta.factor, distance = (moveSpeed * ((particle.retina.wobbleDistance ?? 0) * delta.factor)) / (1000 / 60), max = 2 * Math.PI, { position } = particle;
+    wobble.angle += angleSpeed;
+    if (wobble.angle > max) {
+        wobble.angle -= max;
+    }
+    position.x += distance * Math.cos(wobble.angle);
+    position.y += distance * Math.abs(Math.sin(wobble.angle));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-wobble/esm/WobbleUpdater.js
+
+
+
+class WobbleUpdater {
+    constructor(container) {
+        this.container = container;
+    }
+    init(particle) {
+        const wobbleOpt = particle.options.wobble;
+        if (wobbleOpt?.enable) {
+            particle.wobble = {
+                angle: getRandom() * Math.PI * 2,
+                angleSpeed: getRangeValue(wobbleOpt.speed.angle) / 360,
+                moveSpeed: getRangeValue(wobbleOpt.speed.move) / 10,
+            };
+        }
+        else {
+            particle.wobble = {
+                angle: 0,
+                angleSpeed: 0,
+                moveSpeed: 0,
+            };
+        }
+        particle.retina.wobbleDistance = getRangeValue(wobbleOpt?.distance ?? 0) * this.container.retina.pixelRatio;
+    }
+    isEnabled(particle) {
+        return !particle.destroyed && !particle.spawning && !!particle.options.wobble?.enable;
+    }
+    loadOptions(options, ...sources) {
+        if (!options.wobble) {
+            options.wobble = new Wobble();
+        }
+        for (const source of sources) {
+            options.wobble.load(source?.wobble);
+        }
+    }
+    update(particle, delta) {
+        if (!this.isEnabled(particle)) {
+            return;
+        }
+        updateWobble(particle, delta);
+    }
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles-updater-wobble/esm/index.js
+
+async function loadWobbleUpdater(engine) {
+    await engine.addParticleUpdater("wobble", (container) => new WobbleUpdater(container));
+}
+
+;// CONCATENATED MODULE: ./node_modules/tsparticles/esm/index.js
+
+
+
+
+
+
+
+
+
+async function loadFull(engine) {
+    await loadSlim(engine);
+    await loadDestroyUpdater(engine);
+    await loadRollUpdater(engine);
+    await loadTiltUpdater(engine);
+    await loadTwinkleUpdater(engine);
+    await loadWobbleUpdater(engine);
+    await loadExternalTrailInteraction(engine);
+    await loadAbsorbersPlugin(engine);
+    await loadEmittersPlugin(engine);
+}
+
+;// CONCATENATED MODULE: ./src/Components/Ui/TsParticles/TsParticles.props.ts
+var IParticlesPositions = /*#__PURE__*/function (IParticlesPositions) {
+  IParticlesPositions["LEFT"] = "left";
+  IParticlesPositions["RIGTH"] = "right";
+  return IParticlesPositions;
+}({});
+// EXTERNAL MODULE: ./node_modules/classnames/index.js
+var classnames = __webpack_require__(184);
+var classnames_default = /*#__PURE__*/__webpack_require__.n(classnames);
 // EXTERNAL MODULE: ./node_modules/react/jsx-runtime.js
 var jsx_runtime = __webpack_require__(893);
+;// CONCATENATED MODULE: ./src/Components/Ui/TsParticles/TsParticles.tsx
+function TsParticles_typeof(obj) { "@babel/helpers - typeof"; return TsParticles_typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, TsParticles_typeof(obj); }
+function TsParticles_defineProperty(obj, key, value) { key = TsParticles_toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+function TsParticles_toPropertyKey(arg) { var key = TsParticles_toPrimitive(arg, "string"); return TsParticles_typeof(key) === "symbol" ? key : String(key); }
+function TsParticles_toPrimitive(input, hint) { if (TsParticles_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (TsParticles_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
+function _regeneratorRuntime() { "use strict"; /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */ _regeneratorRuntime = function _regeneratorRuntime() { return exports; }; var exports = {}, Op = Object.prototype, hasOwn = Op.hasOwnProperty, defineProperty = Object.defineProperty || function (obj, key, desc) { obj[key] = desc.value; }, $Symbol = "function" == typeof Symbol ? Symbol : {}, iteratorSymbol = $Symbol.iterator || "@@iterator", asyncIteratorSymbol = $Symbol.asyncIterator || "@@asyncIterator", toStringTagSymbol = $Symbol.toStringTag || "@@toStringTag"; function define(obj, key, value) { return Object.defineProperty(obj, key, { value: value, enumerable: !0, configurable: !0, writable: !0 }), obj[key]; } try { define({}, ""); } catch (err) { define = function define(obj, key, value) { return obj[key] = value; }; } function wrap(innerFn, outerFn, self, tryLocsList) { var protoGenerator = outerFn && outerFn.prototype instanceof Generator ? outerFn : Generator, generator = Object.create(protoGenerator.prototype), context = new Context(tryLocsList || []); return defineProperty(generator, "_invoke", { value: makeInvokeMethod(innerFn, self, context) }), generator; } function tryCatch(fn, obj, arg) { try { return { type: "normal", arg: fn.call(obj, arg) }; } catch (err) { return { type: "throw", arg: err }; } } exports.wrap = wrap; var ContinueSentinel = {}; function Generator() {} function GeneratorFunction() {} function GeneratorFunctionPrototype() {} var IteratorPrototype = {}; define(IteratorPrototype, iteratorSymbol, function () { return this; }); var getProto = Object.getPrototypeOf, NativeIteratorPrototype = getProto && getProto(getProto(values([]))); NativeIteratorPrototype && NativeIteratorPrototype !== Op && hasOwn.call(NativeIteratorPrototype, iteratorSymbol) && (IteratorPrototype = NativeIteratorPrototype); var Gp = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(IteratorPrototype); function defineIteratorMethods(prototype) { ["next", "throw", "return"].forEach(function (method) { define(prototype, method, function (arg) { return this._invoke(method, arg); }); }); } function AsyncIterator(generator, PromiseImpl) { function invoke(method, arg, resolve, reject) { var record = tryCatch(generator[method], generator, arg); if ("throw" !== record.type) { var result = record.arg, value = result.value; return value && "object" == TsParticles_typeof(value) && hasOwn.call(value, "__await") ? PromiseImpl.resolve(value.__await).then(function (value) { invoke("next", value, resolve, reject); }, function (err) { invoke("throw", err, resolve, reject); }) : PromiseImpl.resolve(value).then(function (unwrapped) { result.value = unwrapped, resolve(result); }, function (error) { return invoke("throw", error, resolve, reject); }); } reject(record.arg); } var previousPromise; defineProperty(this, "_invoke", { value: function value(method, arg) { function callInvokeWithMethodAndArg() { return new PromiseImpl(function (resolve, reject) { invoke(method, arg, resolve, reject); }); } return previousPromise = previousPromise ? previousPromise.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg(); } }); } function makeInvokeMethod(innerFn, self, context) { var state = "suspendedStart"; return function (method, arg) { if ("executing" === state) throw new Error("Generator is already running"); if ("completed" === state) { if ("throw" === method) throw arg; return doneResult(); } for (context.method = method, context.arg = arg;;) { var delegate = context.delegate; if (delegate) { var delegateResult = maybeInvokeDelegate(delegate, context); if (delegateResult) { if (delegateResult === ContinueSentinel) continue; return delegateResult; } } if ("next" === context.method) context.sent = context._sent = context.arg;else if ("throw" === context.method) { if ("suspendedStart" === state) throw state = "completed", context.arg; context.dispatchException(context.arg); } else "return" === context.method && context.abrupt("return", context.arg); state = "executing"; var record = tryCatch(innerFn, self, context); if ("normal" === record.type) { if (state = context.done ? "completed" : "suspendedYield", record.arg === ContinueSentinel) continue; return { value: record.arg, done: context.done }; } "throw" === record.type && (state = "completed", context.method = "throw", context.arg = record.arg); } }; } function maybeInvokeDelegate(delegate, context) { var methodName = context.method, method = delegate.iterator[methodName]; if (undefined === method) return context.delegate = null, "throw" === methodName && delegate.iterator["return"] && (context.method = "return", context.arg = undefined, maybeInvokeDelegate(delegate, context), "throw" === context.method) || "return" !== methodName && (context.method = "throw", context.arg = new TypeError("The iterator does not provide a '" + methodName + "' method")), ContinueSentinel; var record = tryCatch(method, delegate.iterator, context.arg); if ("throw" === record.type) return context.method = "throw", context.arg = record.arg, context.delegate = null, ContinueSentinel; var info = record.arg; return info ? info.done ? (context[delegate.resultName] = info.value, context.next = delegate.nextLoc, "return" !== context.method && (context.method = "next", context.arg = undefined), context.delegate = null, ContinueSentinel) : info : (context.method = "throw", context.arg = new TypeError("iterator result is not an object"), context.delegate = null, ContinueSentinel); } function pushTryEntry(locs) { var entry = { tryLoc: locs[0] }; 1 in locs && (entry.catchLoc = locs[1]), 2 in locs && (entry.finallyLoc = locs[2], entry.afterLoc = locs[3]), this.tryEntries.push(entry); } function resetTryEntry(entry) { var record = entry.completion || {}; record.type = "normal", delete record.arg, entry.completion = record; } function Context(tryLocsList) { this.tryEntries = [{ tryLoc: "root" }], tryLocsList.forEach(pushTryEntry, this), this.reset(!0); } function values(iterable) { if (iterable) { var iteratorMethod = iterable[iteratorSymbol]; if (iteratorMethod) return iteratorMethod.call(iterable); if ("function" == typeof iterable.next) return iterable; if (!isNaN(iterable.length)) { var i = -1, next = function next() { for (; ++i < iterable.length;) if (hasOwn.call(iterable, i)) return next.value = iterable[i], next.done = !1, next; return next.value = undefined, next.done = !0, next; }; return next.next = next; } } return { next: doneResult }; } function doneResult() { return { value: undefined, done: !0 }; } return GeneratorFunction.prototype = GeneratorFunctionPrototype, defineProperty(Gp, "constructor", { value: GeneratorFunctionPrototype, configurable: !0 }), defineProperty(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: !0 }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, toStringTagSymbol, "GeneratorFunction"), exports.isGeneratorFunction = function (genFun) { var ctor = "function" == typeof genFun && genFun.constructor; return !!ctor && (ctor === GeneratorFunction || "GeneratorFunction" === (ctor.displayName || ctor.name)); }, exports.mark = function (genFun) { return Object.setPrototypeOf ? Object.setPrototypeOf(genFun, GeneratorFunctionPrototype) : (genFun.__proto__ = GeneratorFunctionPrototype, define(genFun, toStringTagSymbol, "GeneratorFunction")), genFun.prototype = Object.create(Gp), genFun; }, exports.awrap = function (arg) { return { __await: arg }; }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, asyncIteratorSymbol, function () { return this; }), exports.AsyncIterator = AsyncIterator, exports.async = function (innerFn, outerFn, self, tryLocsList, PromiseImpl) { void 0 === PromiseImpl && (PromiseImpl = Promise); var iter = new AsyncIterator(wrap(innerFn, outerFn, self, tryLocsList), PromiseImpl); return exports.isGeneratorFunction(outerFn) ? iter : iter.next().then(function (result) { return result.done ? result.value : iter.next(); }); }, defineIteratorMethods(Gp), define(Gp, toStringTagSymbol, "Generator"), define(Gp, iteratorSymbol, function () { return this; }), define(Gp, "toString", function () { return "[object Generator]"; }), exports.keys = function (val) { var object = Object(val), keys = []; for (var key in object) keys.push(key); return keys.reverse(), function next() { for (; keys.length;) { var key = keys.pop(); if (key in object) return next.value = key, next.done = !1, next; } return next.done = !0, next; }; }, exports.values = values, Context.prototype = { constructor: Context, reset: function reset(skipTempReset) { if (this.prev = 0, this.next = 0, this.sent = this._sent = undefined, this.done = !1, this.delegate = null, this.method = "next", this.arg = undefined, this.tryEntries.forEach(resetTryEntry), !skipTempReset) for (var name in this) "t" === name.charAt(0) && hasOwn.call(this, name) && !isNaN(+name.slice(1)) && (this[name] = undefined); }, stop: function stop() { this.done = !0; var rootRecord = this.tryEntries[0].completion; if ("throw" === rootRecord.type) throw rootRecord.arg; return this.rval; }, dispatchException: function dispatchException(exception) { if (this.done) throw exception; var context = this; function handle(loc, caught) { return record.type = "throw", record.arg = exception, context.next = loc, caught && (context.method = "next", context.arg = undefined), !!caught; } for (var i = this.tryEntries.length - 1; i >= 0; --i) { var entry = this.tryEntries[i], record = entry.completion; if ("root" === entry.tryLoc) return handle("end"); if (entry.tryLoc <= this.prev) { var hasCatch = hasOwn.call(entry, "catchLoc"), hasFinally = hasOwn.call(entry, "finallyLoc"); if (hasCatch && hasFinally) { if (this.prev < entry.catchLoc) return handle(entry.catchLoc, !0); if (this.prev < entry.finallyLoc) return handle(entry.finallyLoc); } else if (hasCatch) { if (this.prev < entry.catchLoc) return handle(entry.catchLoc, !0); } else { if (!hasFinally) throw new Error("try statement without catch or finally"); if (this.prev < entry.finallyLoc) return handle(entry.finallyLoc); } } } }, abrupt: function abrupt(type, arg) { for (var i = this.tryEntries.length - 1; i >= 0; --i) { var entry = this.tryEntries[i]; if (entry.tryLoc <= this.prev && hasOwn.call(entry, "finallyLoc") && this.prev < entry.finallyLoc) { var finallyEntry = entry; break; } } finallyEntry && ("break" === type || "continue" === type) && finallyEntry.tryLoc <= arg && arg <= finallyEntry.finallyLoc && (finallyEntry = null); var record = finallyEntry ? finallyEntry.completion : {}; return record.type = type, record.arg = arg, finallyEntry ? (this.method = "next", this.next = finallyEntry.finallyLoc, ContinueSentinel) : this.complete(record); }, complete: function complete(record, afterLoc) { if ("throw" === record.type) throw record.arg; return "break" === record.type || "continue" === record.type ? this.next = record.arg : "return" === record.type ? (this.rval = this.arg = record.arg, this.method = "return", this.next = "end") : "normal" === record.type && afterLoc && (this.next = afterLoc), ContinueSentinel; }, finish: function finish(finallyLoc) { for (var i = this.tryEntries.length - 1; i >= 0; --i) { var entry = this.tryEntries[i]; if (entry.finallyLoc === finallyLoc) return this.complete(entry.completion, entry.afterLoc), resetTryEntry(entry), ContinueSentinel; } }, "catch": function _catch(tryLoc) { for (var i = this.tryEntries.length - 1; i >= 0; --i) { var entry = this.tryEntries[i]; if (entry.tryLoc === tryLoc) { var record = entry.completion; if ("throw" === record.type) { var thrown = record.arg; resetTryEntry(entry); } return thrown; } } throw new Error("illegal catch attempt"); }, delegateYield: function delegateYield(iterable, resultName, nextLoc) { return this.delegate = { iterator: values(iterable), resultName: resultName, nextLoc: nextLoc }, "next" === this.method && (this.arg = undefined), ContinueSentinel; } }, exports; }
+function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(_next, _throw); } }
+function _asyncToGenerator(fn) { return function () { var self = this, args = arguments; return new Promise(function (resolve, reject) { var gen = fn.apply(self, args); function _next(value) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value); } function _throw(err) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err); } _next(undefined); }); }; }
+
+
+
+
+
+
+var TsParticles = function TsParticles(_ref) {
+  var _cn;
+  var position = _ref.position;
+  var particlesInit = /*#__PURE__*/function () {
+    var _ref2 = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(main) {
+      return _regeneratorRuntime().wrap(function _callee$(_context) {
+        while (1) switch (_context.prev = _context.next) {
+          case 0:
+            console.log(main);
+
+            // you can initialize the tsParticles instance (main) here, adding custom shapes or presets
+            // this loads the tsparticles package bundle, it's the easiest method for getting everything ready
+            // starting from v2 you can add only the features you need reducing the bundle size
+            _context.next = 3;
+            return loadFull(main);
+          case 3:
+          case "end":
+            return _context.stop();
+        }
+      }, _callee);
+    }));
+    return function particlesInit(_x) {
+      return _ref2.apply(this, arguments);
+    };
+  }();
+  return /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
+    className: classnames_default()(TsParticles_module.particlesWrapper, (_cn = {}, TsParticles_defineProperty(_cn, TsParticles_module.particlesWrapper__position_left, position === IParticlesPositions.LEFT), TsParticles_defineProperty(_cn, TsParticles_module.particlesWrapper__position_right, position === IParticlesPositions.RIGTH), _cn)),
+    children: /*#__PURE__*/(0,jsx_runtime.jsx)(esm, {
+      id: "particles_".concat(position),
+      init: particlesInit,
+      options: {
+        fullScreen: {
+          enable: false,
+          zIndex: 1
+        },
+        particles: {
+          number: {
+            value: 10,
+            density: {
+              enable: false,
+              value_area: 800
+            }
+          },
+          color: {
+            value: "#008cff"
+          },
+          shape: {
+            type: "circle"
+          },
+          opacity: {
+            value: 0.8,
+            random: false,
+            anim: {
+              enable: false,
+              speed: 1,
+              opacity_min: 0.1,
+              sync: false
+            }
+          },
+          size: {
+            value: 4,
+            random: false,
+            anim: {
+              enable: false,
+              speed: 40,
+              size_min: 0.1,
+              sync: false
+            }
+          },
+          rotate: {
+            value: 0,
+            random: true,
+            direction: "clockwise",
+            animation: {
+              enable: true,
+              speed: 5,
+              sync: false
+            }
+          },
+          line_linked: {
+            enable: true,
+            distance: 600,
+            color: "#008cff",
+            opacity: 0.4,
+            width: 1
+          },
+          move: {
+            enable: true,
+            speed: 2,
+            direction: "none",
+            random: true,
+            straight: false,
+            out_mode: "out",
+            attract: {
+              enable: false,
+              rotateX: 600,
+              rotateY: 1200
+            }
+          }
+        },
+        interactivity: {
+          events: {
+            onhover: {
+              enable: true,
+              mode: ["grab"]
+            },
+            onclick: {
+              enable: false,
+              mode: "bubble"
+            },
+            resize: true
+          },
+          modes: {
+            grab: {
+              distance: 400,
+              line_linked: {
+                opacity: 1
+              }
+            },
+            bubble: {
+              distance: 400,
+              size: 40,
+              duration: 2,
+              opacity: 8,
+              speed: 3
+            },
+            repulse: {
+              distance: 200
+            },
+            push: {
+              particles_nb: 4
+            },
+            remove: {
+              particles_nb: 2
+            }
+          }
+        },
+        retina_detect: true
+      }
+    })
+  });
+};
+/* harmony default export */ const TsParticles_TsParticles = (TsParticles);
 ;// CONCATENATED MODULE: ./src/Components/Layout/Layout.tsx
+
+
+
+
+
+
 
 
 
 var Layout = function Layout(_ref) {
   var children = _ref.children;
-  return /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
+  var _useWindowDimensions = UseWindowDimensions(),
+    width = _useWindowDimensions.width;
+  var containerRef = (0,react.useRef)(null);
+  var isParticles = width >= 1150;
+  return /*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
     className: "container",
-    children: children
+    children: [isParticles && /*#__PURE__*/(0,jsx_runtime.jsxs)(jsx_runtime.Fragment, {
+      children: [/*#__PURE__*/(0,jsx_runtime.jsx)(TsParticles_TsParticles, {
+        position: IParticlesPositions.LEFT
+      }), /*#__PURE__*/(0,jsx_runtime.jsx)(TsParticles_TsParticles, {
+        position: IParticlesPositions.RIGTH
+      })]
+    }), children]
   });
 };
 /* harmony default export */ const Layout_Layout = (Layout);
@@ -910,8 +13688,6 @@ var IconsManifest = [
     "licenseUrl": "https://github.com/icons8/line-awesome/blob/master/LICENSE.md"
   }
 ]
-// EXTERNAL MODULE: ./node_modules/react/index.js
-var react = __webpack_require__(294);
 ;// CONCATENATED MODULE: ./node_modules/react-icons/lib/esm/iconContext.js
 
 var DefaultContext = {
@@ -5836,12 +18612,12 @@ var ContactTypes = /*#__PURE__*/function (ContactTypes) {
   return ContactTypes;
 }({});
 ;// CONCATENATED MODULE: ./src/Components/Contacts/Contacts.tsx
-function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, _typeof(obj); }
-function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
-function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { _defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
-function _defineProperty(obj, key, value) { key = _toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-function _toPropertyKey(arg) { var key = _toPrimitive(arg, "string"); return _typeof(key) === "symbol" ? key : String(key); }
-function _toPrimitive(input, hint) { if (_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
+function Contacts_typeof(obj) { "@babel/helpers - typeof"; return Contacts_typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, Contacts_typeof(obj); }
+function Contacts_ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
+function Contacts_objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? Contacts_ownKeys(Object(source), !0).forEach(function (key) { Contacts_defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : Contacts_ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+function Contacts_defineProperty(obj, key, value) { key = Contacts_toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
+function Contacts_toPropertyKey(arg) { var key = Contacts_toPrimitive(arg, "string"); return Contacts_typeof(key) === "symbol" ? key : String(key); }
+function Contacts_toPrimitive(input, hint) { if (Contacts_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (Contacts_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
 
 
 
@@ -5913,7 +18689,7 @@ var Contacts = function Contacts() {
   return /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
     className: Contact_module.contacts,
     children: contactItems.map(function (item, index) {
-      return /*#__PURE__*/(0,jsx_runtime.jsx)(ContactItem, _objectSpread({}, item), index);
+      return /*#__PURE__*/(0,jsx_runtime.jsx)(ContactItem, Contacts_objectSpread({}, item), index);
     })
   });
 };
@@ -5934,7 +18710,8 @@ var MyPhoto = function MyPhoto() {
     children: [/*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
       className: MyPhoto_module.photo,
       children: [/*#__PURE__*/(0,jsx_runtime.jsx)("img", {
-        src: My_photo_namespaceObject
+        src: My_photo_namespaceObject,
+        alt: "photo"
       }), /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
         className: MyPhoto_module.photo__verge
       })]
@@ -5960,9 +18737,6 @@ var MyPhoto = function MyPhoto() {
   });
 };
 /* harmony default export */ const MyPhoto_MyPhoto = (MyPhoto);
-// EXTERNAL MODULE: ./node_modules/classnames/index.js
-var classnames = __webpack_require__(184);
-var classnames_default = /*#__PURE__*/__webpack_require__.n(classnames);
 ;// CONCATENATED MODULE: ./src/Components/BasicInfo/BasicInfo.tsx
 
 
@@ -6247,12 +19021,12 @@ function Skills_typeof(obj) { "@babel/helpers - typeof"; return Skills_typeof = 
 function Skills_defineProperty(obj, key, value) { key = Skills_toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 function Skills_toPropertyKey(arg) { var key = Skills_toPrimitive(arg, "string"); return Skills_typeof(key) === "symbol" ? key : String(key); }
 function Skills_toPrimitive(input, hint) { if (Skills_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (Skills_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
-function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest(); }
-function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
-function _unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return _arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen); }
-function _arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]; return arr2; }
-function _iterableToArrayLimit(arr, i) { var _i = null == arr ? null : "undefined" != typeof Symbol && arr[Symbol.iterator] || arr["@@iterator"]; if (null != _i) { var _s, _e, _x, _r, _arr = [], _n = !0, _d = !1; try { if (_x = (_i = _i.call(arr)).next, 0 === i) { if (Object(_i) !== _i) return; _n = !1; } else for (; !(_n = (_s = _x.call(_i)).done) && (_arr.push(_s.value), _arr.length !== i); _n = !0); } catch (err) { _d = !0, _e = err; } finally { try { if (!_n && null != _i["return"] && (_r = _i["return"](), Object(_r) !== _r)) return; } finally { if (_d) throw _e; } } return _arr; } }
-function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
+function Skills_slicedToArray(arr, i) { return Skills_arrayWithHoles(arr) || Skills_iterableToArrayLimit(arr, i) || Skills_unsupportedIterableToArray(arr, i) || Skills_nonIterableRest(); }
+function Skills_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function Skills_unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return Skills_arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return Skills_arrayLikeToArray(o, minLen); }
+function Skills_arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]; return arr2; }
+function Skills_iterableToArrayLimit(arr, i) { var _i = null == arr ? null : "undefined" != typeof Symbol && arr[Symbol.iterator] || arr["@@iterator"]; if (null != _i) { var _s, _e, _x, _r, _arr = [], _n = !0, _d = !1; try { if (_x = (_i = _i.call(arr)).next, 0 === i) { if (Object(_i) !== _i) return; _n = !1; } else for (; !(_n = (_s = _x.call(_i)).done) && (_arr.push(_s.value), _arr.length !== i); _n = !0); } catch (err) { _d = !0, _e = err; } finally { try { if (!_n && null != _i["return"] && (_r = _i["return"](), Object(_r) !== _r)) return; } finally { if (_d) throw _e; } } return _arr; } }
+function Skills_arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
 
 
@@ -6265,7 +19039,7 @@ var SkillCard = function SkillCard(_ref) {
   var category = _ref.category,
     skills = _ref.skills;
   var _useState = (0,react.useState)(false),
-    _useState2 = _slicedToArray(_useState, 2),
+    _useState2 = Skills_slicedToArray(_useState, 2),
     isVisible = _useState2[0],
     setIsVisible = _useState2[1];
   var skillsCardRef = (0,react.useRef)(null);
@@ -6604,56 +19378,6 @@ var Cube = function Cube() {
   });
 };
 /* harmony default export */ const Cube_Cube = (Cube);
-;// CONCATENATED MODULE: ./src/Hooks/UseWindowDimensions.tsx
-function UseWindowDimensions_typeof(obj) { "@babel/helpers - typeof"; return UseWindowDimensions_typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, UseWindowDimensions_typeof(obj); }
-function UseWindowDimensions_ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
-function UseWindowDimensions_objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? UseWindowDimensions_ownKeys(Object(source), !0).forEach(function (key) { UseWindowDimensions_defineProperty(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : UseWindowDimensions_ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
-function UseWindowDimensions_defineProperty(obj, key, value) { key = UseWindowDimensions_toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-function UseWindowDimensions_toPropertyKey(arg) { var key = UseWindowDimensions_toPrimitive(arg, "string"); return UseWindowDimensions_typeof(key) === "symbol" ? key : String(key); }
-function UseWindowDimensions_toPrimitive(input, hint) { if (UseWindowDimensions_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (UseWindowDimensions_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
-function UseWindowDimensions_slicedToArray(arr, i) { return UseWindowDimensions_arrayWithHoles(arr) || UseWindowDimensions_iterableToArrayLimit(arr, i) || UseWindowDimensions_unsupportedIterableToArray(arr, i) || UseWindowDimensions_nonIterableRest(); }
-function UseWindowDimensions_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
-function UseWindowDimensions_unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return UseWindowDimensions_arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return UseWindowDimensions_arrayLikeToArray(o, minLen); }
-function UseWindowDimensions_arrayLikeToArray(arr, len) { if (len == null || len > arr.length) len = arr.length; for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i]; return arr2; }
-function UseWindowDimensions_iterableToArrayLimit(arr, i) { var _i = null == arr ? null : "undefined" != typeof Symbol && arr[Symbol.iterator] || arr["@@iterator"]; if (null != _i) { var _s, _e, _x, _r, _arr = [], _n = !0, _d = !1; try { if (_x = (_i = _i.call(arr)).next, 0 === i) { if (Object(_i) !== _i) return; _n = !1; } else for (; !(_n = (_s = _x.call(_i)).done) && (_arr.push(_s.value), _arr.length !== i); _n = !0); } catch (err) { _d = !0, _e = err; } finally { try { if (!_n && null != _i["return"] && (_r = _i["return"](), Object(_r) !== _r)) return; } finally { if (_d) throw _e; } } return _arr; } }
-function UseWindowDimensions_arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
-
-var useWindowDimensions = function useWindowDimensions() {
-  var getWindowDimensions = function getWindowDimensions() {
-    return {
-      width: window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth,
-      height: window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight
-    };
-  };
-  var _useState = (0,react.useState)(getWindowDimensions()),
-    _useState2 = UseWindowDimensions_slicedToArray(_useState, 2),
-    windowDimensions = _useState2[0],
-    setWindowDimensions = _useState2[1];
-  var _useState3 = (0,react.useState)(false),
-    _useState4 = UseWindowDimensions_slicedToArray(_useState3, 2),
-    isMobile = _useState4[0],
-    setIsMobile = _useState4[1];
-  (0,react.useEffect)(function () {
-    var isMobileVersion = function isMobileVersion() {
-      var width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-      return width <= 768;
-    };
-    setIsMobile(isMobileVersion());
-  }, [windowDimensions]);
-  (0,react.useEffect)(function () {
-    var handleResize = function handleResize() {
-      return setWindowDimensions(getWindowDimensions());
-    };
-    window.addEventListener('resize', handleResize);
-    return function () {
-      return window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-  return UseWindowDimensions_objectSpread(UseWindowDimensions_objectSpread({}, windowDimensions), {}, {
-    isMobile: isMobile
-  });
-};
-/* harmony default export */ const UseWindowDimensions = (useWindowDimensions);
 ;// CONCATENATED MODULE: ./src/Components/Column/Column.tsx
 
 
