@@ -29,12 +29,13 @@
         opacity: 1;
         transform: translateY(0) scale(1);
         animation: changeColor 1s ease-in-out both;
+        
         @keyframes changeColor {
           0% {
             color: $blue-color
           }
           100% {
-            color: $lightened-black-color;;
+            color: $lightened-black-color;
           }
         }
       }

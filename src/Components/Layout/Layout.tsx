@@ -1,4 +1,5 @@
-import { MouseEventHandler, ReactNode, useRef } from "react";
+import { ReactNode } from "react";
+import styles from "./Layout.module.scss";
 import "../../Fonts/index.scss";
 import "../../global.scss";
 import useWindowDimensions from "../../Hooks/UseWindowDimensions";
@@ -11,11 +12,10 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps): JSX.Element => {
   const { width } = useWindowDimensions();
-  const containerRef = useRef<HTMLDivElement>(null);
   const isParticles = width >= 1150;
 
   return (
-    <div className={"container"}>
+    <div className={styles.layout}>
       {isParticles && (
         <>
           <TsParticles position={IParticlesPositions.LEFT} />
