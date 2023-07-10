@@ -5,6 +5,10 @@
     gap: 0.5rem;
     white-space: pre-wrap;
 
+    & .char {
+        opacity: 0;
+    }
+
     & span {
         display: inline-block;
     }
