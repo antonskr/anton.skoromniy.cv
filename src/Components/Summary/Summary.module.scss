@@ -4,10 +4,14 @@
   @include title-hover;
 
   & .description {
-    padding-top: 0.5em;
+    position: relative;
+    padding-top: 1rem;
 
-    & div:nth-child(n+2) {
-      padding-top: 1em;
+    &__placeholder {
+      position: absolute;
+      top: 1rem;
+      left: 0;
+      color: deepskyblue;
     }
   }
 }
