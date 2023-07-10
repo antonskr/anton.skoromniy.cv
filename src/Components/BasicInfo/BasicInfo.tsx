@@ -12,7 +12,16 @@ const BasicInfo = (): JSX.Element => {
           <TextReveral text="Anton skoromniy" />
         </h1>
         <p className={cn("blue", styles.description)}>
-        <TextReveral text="Front-end Developer" delay={0.5} />
+          <TextReveral text="Front-end Developer" delay={0.5} />
+          <div className={styles.description__additionalText}>
+            <TextReveral
+              text="- and a cool guy"
+              from="bottom"
+              delay={1.8}
+              afterDelay={0.5}
+              desappearAfter={true}
+            />
+          </div>
         </p>
         <Contacts />
       </div>

@@ -7,6 +7,8 @@ const TextReveral = ({
   text,
   delay = 0,
   from = "top",
+  afterDelay = 0,
+  desappearAfter = false
 }: ITextReveralProps): JSX.Element => {
   const textRef = useRef<HTMLDivElement>(null);
 
@@ -15,18 +17,7 @@ const TextReveral = ({
 
     if (!chars) return;
 
-    const getInitialPosition = () => {
-      switch (from) {
-        case "top":
-          return -100;
-        case "bottom":
-          return 100;
-        default:
-          return 0;
-      }
-    };
-
-    const initialPosition = getInitialPosition();
+    const initialPosition = from === "top" ? -100 : 100;
 
     gsap.set(chars, { y: initialPosition, opacity: 0 });
 
@@ -39,6 +30,18 @@ const TextReveral = ({
       stagger: 0.05,
       ease: "power2.out",
       delay,
+      onComplete: () => {
+        if (desappearAfter) {
+            gsap.to(chars, {
+                duration: 0.5,
+                y: from === "top" ? 100 : -100,
+                opacity: 0,
+                stagger: 0.05,
+                ease: "power2.in",
+                delay: afterDelay
+              });
+        } 
+      }
     });
 
     return () => {
