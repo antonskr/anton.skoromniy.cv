@@ -16641,7 +16641,7 @@ var Layout = function Layout(_ref) {
 /* harmony default export */ const Layout_Layout = (Layout);
 ;// CONCATENATED MODULE: ./src/Components/BasicInfo/Basickinfo.module.scss
 // extracted by mini-css-extract-plugin
-/* harmony default export */ const Basickinfo_module = ({"basicInfo":"EVzUGxmP","basic":"fJIxvZRF","fullName":"aiMiV2dK","description":"YR8257nk"});
+/* harmony default export */ const Basickinfo_module = ({"basicInfo":"EVzUGxmP","basic":"fJIxvZRF","fullName":"aiMiV2dK","description":"YR8257nk","description__additionalText":"DLUdDSzE"});
 ;// CONCATENATED MODULE: ./src/Components/Contacts/Contact.module.scss
 // extracted by mini-css-extract-plugin
 /* harmony default export */ const Contact_module = ({"item":"CBDNbQgb","contactValue":"RjenAHDS","icon":"RPFibJxw","contacts":"eKdkoxW7"});
@@ -21914,144 +21914,9 @@ var MyPhoto = function MyPhoto() {
   });
 };
 /* harmony default export */ const MyPhoto_MyPhoto = (MyPhoto);
-;// CONCATENATED MODULE: ./src/Components/BasicInfo/BasicInfo.tsx
-
-
-
-
-
-
-var BasicInfo = function BasicInfo() {
-  return /*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
-    className: classnames_default()(Basickinfo_module.basicInfo),
-    children: [/*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
-      className: Basickinfo_module.basic,
-      children: [/*#__PURE__*/(0,jsx_runtime.jsx)("h1", {
-        className: Basickinfo_module.fullName,
-        children: "Anton skoromniy"
-      }), /*#__PURE__*/(0,jsx_runtime.jsx)("p", {
-        className: classnames_default()('blue', Basickinfo_module.description),
-        children: "Middle Front End Developer"
-      }), /*#__PURE__*/(0,jsx_runtime.jsx)(Contacts_Contacts, {})]
-    }), /*#__PURE__*/(0,jsx_runtime.jsx)(MyPhoto_MyPhoto, {})]
-  });
-};
-/* harmony default export */ const BasicInfo_BasicInfo = (BasicInfo);
-;// CONCATENATED MODULE: ./src/Components/Column/Column.module.scss
+;// CONCATENATED MODULE: ./src/Components/Ui/TextReveral/TextReveral.module.scss
 // extracted by mini-css-extract-plugin
-/* harmony default export */ const Column_module = ({"column":"ZvpwAfNk"});
-;// CONCATENATED MODULE: ./src/Components/Emergence/Emergence.module.scss
-// extracted by mini-css-extract-plugin
-/* harmony default export */ const Emergence_module = ({"wrapper":"uoROcp1c","top":"CCkZtYhG","right":"gkoExGmi","bottom":"JHzdHJuU","left":"pSHfuHBk","visible":"dL8YC8FW"});
-;// CONCATENATED MODULE: ./src/Helper.tsx
-var elementVisibilityCheck = function elementVisibilityCheck(el, threshold, mode) {
-  mode = mode || 'visible';
-  var rect = el.getBoundingClientRect();
-  threshold = rect.height * threshold || 0;
-  var viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
-  var above = rect.bottom - threshold < 0;
-  var below = rect.top - viewHeight + threshold >= 0;
-  return mode === 'above' ? above : mode === 'below' ? below : !above && !below;
-};
-
-;// CONCATENATED MODULE: ./src/Components/Emergence/Emergence.tsx
-
-
-
-
-
-var Emergence = function Emergence(_ref) {
-  var children = _ref.children,
-    callbackFn = _ref.callbackFn,
-    _ref$direction = _ref.direction,
-    direction = _ref$direction === void 0 ? 'top' : _ref$direction,
-    _ref$threshold = _ref.threshold,
-    threshold = _ref$threshold === void 0 ? 1 : _ref$threshold;
-  var wrapperRef = (0,react.useRef)(null);
-  var emergenceIfVisible = function emergenceIfVisible() {
-    if (!wrapperRef.current) {
-      return;
-    }
-    var isVisible = elementVisibilityCheck(wrapperRef.current, threshold);
-    if (isVisible) {
-      if (typeof callbackFn === 'function') {
-        callbackFn(true);
-      }
-      wrapperRef.current.classList.add(Emergence_module.visible);
-      window.removeEventListener('scroll', emergenceIfVisible);
-    }
-  };
-  (0,react.useEffect)(function () {
-    emergenceIfVisible();
-    window.addEventListener('scroll', emergenceIfVisible);
-    return function () {
-      return window.removeEventListener('scroll', emergenceIfVisible);
-    };
-  }, []);
-  return /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
-    className: classnames_default()(Emergence_module.wrapper, Emergence_module[direction]),
-    ref: wrapperRef,
-    children: children
-  });
-};
-/* harmony default export */ const Emergence_Emergence = (Emergence);
-;// CONCATENATED MODULE: ./src/Components/Summary/Summary.module.scss
-// extracted by mini-css-extract-plugin
-/* harmony default export */ const Summary_module = ({"summary":"K8Tz6v7T","description":"LIV5XKZY","description__placeholder":"bfkXjFRs"});
-;// CONCATENATED MODULE: ./src/Components/Ui/TitleWithLine/TitleWithLine.module.scss
-// extracted by mini-css-extract-plugin
-/* harmony default export */ const TitleWithLine_module = ({"titleWithLine":"Lbgdchd8","titleWithLine_visible":"epEQuq_M"});
-;// CONCATENATED MODULE: ./src/Components/Ui/TitleWithLine/TitleWithline.tsx
-
-
-
-
-
-var TitleWithLine = function TitleWithLine(_ref) {
-  var title = _ref.title;
-  var titleRef = (0,react.useRef)(null);
-  var fillIsTitleVisible = function fillIsTitleVisible() {
-    if (titleRef.current) {
-      var isVisible = elementVisibilityCheck(titleRef.current, 1);
-      titleRef.current.classList.toggle(TitleWithLine_module.titleWithLine_visible, isVisible);
-    }
-  };
-  var resetFilledTitle = function resetFilledTitle() {
-    var _titleRef$current;
-    (_titleRef$current = titleRef.current) === null || _titleRef$current === void 0 ? void 0 : _titleRef$current.classList.remove(TitleWithLine_module.titleWithLine_visible);
-  };
-  var isMobileVersion = function isMobileVersion() {
-    var width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-    return width <= 768;
-  };
-  var controlScrollListener = function controlScrollListener() {
-    if (isMobileVersion()) {
-      window.addEventListener('scroll', fillIsTitleVisible);
-    } else {
-      resetFilledTitle();
-      window.removeEventListener('scroll', fillIsTitleVisible);
-    }
-  };
-  (0,react.useEffect)(function () {
-    if (isMobileVersion()) {
-      fillIsTitleVisible();
-    }
-    controlScrollListener();
-    window.addEventListener('resize', controlScrollListener);
-    return function () {
-      window.removeEventListener('resize', controlScrollListener);
-      window.removeEventListener('scroll', fillIsTitleVisible);
-    };
-  }, []);
-  return /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
-    className: classnames_default()(TitleWithLine_module.titleWithLine, 'titleWithLine'),
-    ref: titleRef,
-    children: /*#__PURE__*/(0,jsx_runtime.jsx)("h2", {
-      children: title
-    })
-  });
-};
-/* harmony default export */ const TitleWithline = (TitleWithLine);
+/* harmony default export */ const TextReveral_module = ({"reveral":"hzkLiqgw"});
 ;// CONCATENATED MODULE: ./node_modules/gsap/gsap-core.js
 function _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
 
@@ -28073,6 +27938,226 @@ var gsapWithCSS = gsap.registerPlugin(CSSPlugin) || gsap,
     // to protect from tree shaking
 TweenMaxWithCSS = gsapWithCSS.core.Tween;
 
+;// CONCATENATED MODULE: ./src/Components/Ui/TextReveral/TextReveral.tsx
+
+
+
+
+var TextReveral = function TextReveral(_ref) {
+  var text = _ref.text,
+    _ref$delay = _ref.delay,
+    delay = _ref$delay === void 0 ? 0 : _ref$delay,
+    _ref$from = _ref.from,
+    from = _ref$from === void 0 ? "top" : _ref$from,
+    _ref$afterDelay = _ref.afterDelay,
+    afterDelay = _ref$afterDelay === void 0 ? 0 : _ref$afterDelay,
+    _ref$desappearAfter = _ref.desappearAfter,
+    desappearAfter = _ref$desappearAfter === void 0 ? false : _ref$desappearAfter;
+  var textRef = (0,react.useRef)(null);
+  (0,react.useEffect)(function () {
+    var _textRef$current;
+    var chars = (_textRef$current = textRef.current) === null || _textRef$current === void 0 ? void 0 : _textRef$current.querySelectorAll("span span");
+    if (!chars) return;
+    var initialPosition = from === "top" ? -100 : 100;
+    gsapWithCSS.set(chars, {
+      y: initialPosition,
+      opacity: 0
+    });
+    var timeline = gsapWithCSS.timeline();
+    timeline.to(chars, {
+      duration: 0.5,
+      y: "0%",
+      opacity: 1,
+      stagger: 0.05,
+      ease: "power2.out",
+      delay: delay,
+      onComplete: function onComplete() {
+        if (desappearAfter) {
+          gsapWithCSS.to(chars, {
+            duration: 0.5,
+            y: from === "top" ? 100 : -100,
+            opacity: 0,
+            stagger: 0.05,
+            ease: "power2.in",
+            delay: afterDelay
+          });
+        }
+      }
+    });
+    return function () {
+      timeline.kill();
+    };
+  }, []);
+  return /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
+    className: TextReveral_module.reveral,
+    ref: textRef,
+    children: text.split(" ").map(function (word, idx) {
+      return /*#__PURE__*/(0,jsx_runtime.jsx)("span", {
+        className: TextReveral_module.word,
+        children: word.split("").map(function (_char, idx) {
+          return /*#__PURE__*/(0,jsx_runtime.jsx)("span", {
+            className: TextReveral_module["char"],
+            children: _char
+          }, "char".concat(idx));
+        })
+      }, "word".concat(idx));
+    })
+  });
+};
+/* harmony default export */ const TextReveral_TextReveral = (TextReveral);
+;// CONCATENATED MODULE: ./src/Components/BasicInfo/BasicInfo.tsx
+
+
+
+
+
+
+
+var BasicInfo = function BasicInfo() {
+  return /*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
+    className: classnames_default()(Basickinfo_module.basicInfo),
+    children: [/*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
+      className: Basickinfo_module.basic,
+      children: [/*#__PURE__*/(0,jsx_runtime.jsx)("h1", {
+        className: Basickinfo_module.fullName,
+        children: /*#__PURE__*/(0,jsx_runtime.jsx)(TextReveral_TextReveral, {
+          text: "Anton skoromniy"
+        })
+      }), /*#__PURE__*/(0,jsx_runtime.jsxs)("p", {
+        className: classnames_default()("blue", Basickinfo_module.description),
+        children: [/*#__PURE__*/(0,jsx_runtime.jsx)(TextReveral_TextReveral, {
+          text: "Front-end Developer",
+          delay: 0.5
+        }), /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
+          className: Basickinfo_module.description__additionalText,
+          children: /*#__PURE__*/(0,jsx_runtime.jsx)(TextReveral_TextReveral, {
+            text: "- and a cool guy",
+            from: "bottom",
+            delay: 1.8,
+            afterDelay: 0.5,
+            desappearAfter: true
+          })
+        })]
+      }), /*#__PURE__*/(0,jsx_runtime.jsx)(Contacts_Contacts, {})]
+    }), /*#__PURE__*/(0,jsx_runtime.jsx)(MyPhoto_MyPhoto, {})]
+  });
+};
+/* harmony default export */ const BasicInfo_BasicInfo = (BasicInfo);
+;// CONCATENATED MODULE: ./src/Components/Column/Column.module.scss
+// extracted by mini-css-extract-plugin
+/* harmony default export */ const Column_module = ({"column":"ZvpwAfNk"});
+;// CONCATENATED MODULE: ./src/Components/Emergence/Emergence.module.scss
+// extracted by mini-css-extract-plugin
+/* harmony default export */ const Emergence_module = ({"wrapper":"uoROcp1c","top":"CCkZtYhG","right":"gkoExGmi","bottom":"JHzdHJuU","left":"pSHfuHBk","visible":"dL8YC8FW"});
+;// CONCATENATED MODULE: ./src/Helper.tsx
+var elementVisibilityCheck = function elementVisibilityCheck(el, threshold, mode) {
+  mode = mode || 'visible';
+  var rect = el.getBoundingClientRect();
+  threshold = rect.height * threshold || 0;
+  var viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
+  var above = rect.bottom - threshold < 0;
+  var below = rect.top - viewHeight + threshold >= 0;
+  return mode === 'above' ? above : mode === 'below' ? below : !above && !below;
+};
+
+;// CONCATENATED MODULE: ./src/Components/Emergence/Emergence.tsx
+
+
+
+
+
+var Emergence = function Emergence(_ref) {
+  var children = _ref.children,
+    callbackFn = _ref.callbackFn,
+    _ref$direction = _ref.direction,
+    direction = _ref$direction === void 0 ? 'top' : _ref$direction,
+    _ref$threshold = _ref.threshold,
+    threshold = _ref$threshold === void 0 ? 1 : _ref$threshold;
+  var wrapperRef = (0,react.useRef)(null);
+  var emergenceIfVisible = function emergenceIfVisible() {
+    if (!wrapperRef.current) {
+      return;
+    }
+    var isVisible = elementVisibilityCheck(wrapperRef.current, threshold);
+    if (isVisible) {
+      if (typeof callbackFn === 'function') {
+        callbackFn(true);
+      }
+      wrapperRef.current.classList.add(Emergence_module.visible);
+      window.removeEventListener('scroll', emergenceIfVisible);
+    }
+  };
+  (0,react.useEffect)(function () {
+    emergenceIfVisible();
+    window.addEventListener('scroll', emergenceIfVisible);
+    return function () {
+      return window.removeEventListener('scroll', emergenceIfVisible);
+    };
+  }, []);
+  return /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
+    className: classnames_default()(Emergence_module.wrapper, Emergence_module[direction]),
+    ref: wrapperRef,
+    children: children
+  });
+};
+/* harmony default export */ const Emergence_Emergence = (Emergence);
+;// CONCATENATED MODULE: ./src/Components/Summary/Summary.module.scss
+// extracted by mini-css-extract-plugin
+/* harmony default export */ const Summary_module = ({"summary":"K8Tz6v7T","description":"LIV5XKZY","description__placeholder":"bfkXjFRs"});
+;// CONCATENATED MODULE: ./src/Components/Ui/TitleWithLine/TitleWithLine.module.scss
+// extracted by mini-css-extract-plugin
+/* harmony default export */ const TitleWithLine_module = ({"titleWithLine":"Lbgdchd8","titleWithLine_visible":"epEQuq_M"});
+;// CONCATENATED MODULE: ./src/Components/Ui/TitleWithLine/TitleWithline.tsx
+
+
+
+
+
+var TitleWithLine = function TitleWithLine(_ref) {
+  var title = _ref.title;
+  var titleRef = (0,react.useRef)(null);
+  var fillIsTitleVisible = function fillIsTitleVisible() {
+    if (titleRef.current) {
+      var isVisible = elementVisibilityCheck(titleRef.current, 1);
+      titleRef.current.classList.toggle(TitleWithLine_module.titleWithLine_visible, isVisible);
+    }
+  };
+  var resetFilledTitle = function resetFilledTitle() {
+    var _titleRef$current;
+    (_titleRef$current = titleRef.current) === null || _titleRef$current === void 0 ? void 0 : _titleRef$current.classList.remove(TitleWithLine_module.titleWithLine_visible);
+  };
+  var isMobileVersion = function isMobileVersion() {
+    var width = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+    return width <= 768;
+  };
+  var controlScrollListener = function controlScrollListener() {
+    if (isMobileVersion()) {
+      window.addEventListener('scroll', fillIsTitleVisible);
+    } else {
+      resetFilledTitle();
+      window.removeEventListener('scroll', fillIsTitleVisible);
+    }
+  };
+  (0,react.useEffect)(function () {
+    if (isMobileVersion()) {
+      fillIsTitleVisible();
+    }
+    controlScrollListener();
+    window.addEventListener('resize', controlScrollListener);
+    return function () {
+      window.removeEventListener('resize', controlScrollListener);
+      window.removeEventListener('scroll', fillIsTitleVisible);
+    };
+  }, []);
+  return /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
+    className: classnames_default()(TitleWithLine_module.titleWithLine, 'titleWithLine'),
+    ref: titleRef,
+    children: /*#__PURE__*/(0,jsx_runtime.jsx)("h2", {
+      children: title
+    })
+  });
+};
+/* harmony default export */ const TitleWithline = (TitleWithLine);
 // EXTERNAL MODULE: ./node_modules/gsap/dist/ScrollTrigger.js
 var ScrollTrigger = __webpack_require__(546);
 ;// CONCATENATED MODULE: ./src/Components/Summary/Summary.tsx
@@ -28447,7 +28532,7 @@ var Languages = function Languages() {
     }), /*#__PURE__*/(0,jsx_runtime.jsx)(Emergence_Emergence, {
       children: /*#__PURE__*/(0,jsx_runtime.jsx)(Language, {
         language: "English",
-        level: "Pre-intermediate",
+        level: "Intermediate",
         rating: 3
       })
     }), /*#__PURE__*/(0,jsx_runtime.jsx)(Emergence_Emergence, {
