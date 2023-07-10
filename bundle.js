@@ -21916,7 +21916,7 @@ var MyPhoto = function MyPhoto() {
 /* harmony default export */ const MyPhoto_MyPhoto = (MyPhoto);
 ;// CONCATENATED MODULE: ./src/Components/Ui/TextReveral/TextReveral.module.scss
 // extracted by mini-css-extract-plugin
-/* harmony default export */ const TextReveral_module = ({"reveral":"hzkLiqgw"});
+/* harmony default export */ const TextReveral_module = ({"reveral":"hzkLiqgw","char":"A0CWMDAz"});
 ;// CONCATENATED MODULE: ./node_modules/gsap/gsap-core.js
 function _assertThisInitialized(self) { if (self === void 0) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return self; }
 
