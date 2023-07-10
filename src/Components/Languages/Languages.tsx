@@ -66,7 +66,7 @@ const Languages = () => {
         <Language language='Ukrainian' level='Native' rating={5} />
       </Emergence>
       <Emergence>
-        <Language language='English' level='Pre-intermediate' rating={3} />
+        <Language language='English' level='Intermediate' rating={3} />
       </Emergence>
       <Emergence>
         <Language language='Russian' level='Proficient' rating={5} />
