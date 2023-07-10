@@ -11,7 +11,7 @@ const BasicInfo = (): JSX.Element => {
         <h1 className={styles.fullName}>
           <TextReveral text="Anton skoromniy" />
         </h1>
-        <p className={cn("blue", styles.description)}>
+        <div className={cn("blue", styles.description)}>
           <TextReveral text="Front-end Developer" delay={0.5} />
           <div className={styles.description__additionalText}>
             <TextReveral
@@ -22,7 +22,7 @@ const BasicInfo = (): JSX.Element => {
               desappearAfter={true}
             />
           </div>
-        </p>
+        </div>
         <Contacts />
       </div>
       <MyPhoto />
