@@ -29,7 +29,6 @@ const TsParticles = ({ position }: IParticles) => {
             enable: false,
             zIndex: 1
           },
-          fpsLimit: 60,
           interactivity: {
             detectsOn: 'window',
             events: {
