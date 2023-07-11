@@ -20,5 +20,3 @@ You will also see any errors in the console.
 Builds a production application in the `build` folder.\
 The application will be minified and all files will get hashes in their names.\
 You will also be ready to deploy the application!
-
-Translated with www.DeepL.com/Translator (free version)
