@@ -16477,14 +16477,9 @@ var TsParticles = function TsParticles(_ref) {
       return _regeneratorRuntime().wrap(function _callee$(_context) {
         while (1) switch (_context.prev = _context.next) {
           case 0:
-            console.log(main);
-
-            // you can initialize the tsParticles instance (main) here, adding custom shapes or presets
-            // this loads the tsparticles package bundle, it's the easiest method for getting everything ready
-            // starting from v2 you can add only the features you need reducing the bundle size
-            _context.next = 3;
+            _context.next = 2;
             return loadFull(main);
-          case 3:
+          case 2:
           case "end":
             return _context.stop();
         }
@@ -16504,7 +16499,6 @@ var TsParticles = function TsParticles(_ref) {
           enable: false,
           zIndex: 1
         },
-        fpsLimit: 60,
         interactivity: {
           detectsOn: 'window',
           events: {
@@ -27912,6 +27906,8 @@ TweenMaxWithCSS = gsapWithCSS.core.Tween;
 
 
 
+
+
 var TextReveral = function TextReveral(_ref) {
   var text = _ref.text,
     _ref$delay = _ref.delay,
@@ -27961,15 +27957,19 @@ var TextReveral = function TextReveral(_ref) {
     className: TextReveral_module.reveral,
     ref: textRef,
     children: text.split(" ").map(function (word, idx) {
-      return /*#__PURE__*/(0,jsx_runtime.jsx)("span", {
-        className: TextReveral_module.word,
-        children: word.split("").map(function (_char, idx) {
-          return /*#__PURE__*/(0,jsx_runtime.jsx)("span", {
-            className: TextReveral_module["char"],
-            children: _char
-          }, "char".concat(idx));
-        })
-      }, "word".concat(idx));
+      return /*#__PURE__*/(0,jsx_runtime.jsxs)(jsx_runtime.Fragment, {
+        children: [/*#__PURE__*/(0,jsx_runtime.jsx)("span", {
+          className: TextReveral_module.word,
+          children: word.split("").map(function (_char, idx) {
+            return /*#__PURE__*/(0,jsx_runtime.jsx)("span", {
+              className: TextReveral_module["char"],
+              children: _char
+            }, "char".concat(idx));
+          })
+        }, "word".concat(idx)), idx < text.split(" ").length - 1 && /*#__PURE__*/(0,jsx_runtime.jsx)(jsx_runtime.Fragment, {
+          children: "\xA0"
+        })]
+      });
     })
   });
 };
@@ -27992,7 +27992,7 @@ var BasicInfo = function BasicInfo() {
         children: /*#__PURE__*/(0,jsx_runtime.jsx)(TextReveral_TextReveral, {
           text: "Anton skoromniy"
         })
-      }), /*#__PURE__*/(0,jsx_runtime.jsxs)("p", {
+      }), /*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
         className: classnames_default()("blue", Basickinfo_module.description),
         children: [/*#__PURE__*/(0,jsx_runtime.jsx)(TextReveral_TextReveral, {
           text: "Front-end Developer",
@@ -28312,12 +28312,8 @@ var Experience = function Experience() {
 /* harmony default export */ const Experience_Experience = (Experience);
 ;// CONCATENATED MODULE: ./src/Components/Skills/Skills.module.scss
 // extracted by mini-css-extract-plugin
-/* harmony default export */ const Skills_module = ({"skills":"MASEC_fe","skillsCard":"HvwSpq3I","skillsCard__category":"dL3uLy8h","skillsCard__skills":"nQk5Qsgx","skillsCard__skills__visible":"Gm0GJmis","skillsCard__skills__item":"wVQshnX9","changeColor":"Yk4TS1b6"});
+/* harmony default export */ const Skills_module = ({"skills":"MASEC_fe","skillsCard":"HvwSpq3I","skillsCard__category":"dL3uLy8h","skillsCard__skills":"nQk5Qsgx","skillsCard__skills__item":"wVQshnX9","skillsCard__skills__item__active":"GAPeQEEO","changeColor":"Yk4TS1b6"});
 ;// CONCATENATED MODULE: ./src/Components/Skills/Skills.tsx
-function Skills_typeof(obj) { "@babel/helpers - typeof"; return Skills_typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, Skills_typeof(obj); }
-function Skills_defineProperty(obj, key, value) { key = Skills_toPropertyKey(key); if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
-function Skills_toPropertyKey(arg) { var key = Skills_toPrimitive(arg, "string"); return Skills_typeof(key) === "symbol" ? key : String(key); }
-function Skills_toPrimitive(input, hint) { if (Skills_typeof(input) !== "object" || input === null) return input; var prim = input[Symbol.toPrimitive]; if (prim !== undefined) { var res = prim.call(input, hint || "default"); if (Skills_typeof(res) !== "object") return res; throw new TypeError("@@toPrimitive must return a primitive value."); } return (hint === "string" ? String : Number)(input); }
 function Skills_slicedToArray(arr, i) { return Skills_arrayWithHoles(arr) || Skills_iterableToArrayLimit(arr, i) || Skills_unsupportedIterableToArray(arr, i) || Skills_nonIterableRest(); }
 function Skills_nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
 function Skills_unsupportedIterableToArray(o, minLen) { if (!o) return; if (typeof o === "string") return Skills_arrayLikeToArray(o, minLen); var n = Object.prototype.toString.call(o).slice(8, -1); if (n === "Object" && o.constructor) n = o.constructor.name; if (n === "Map" || n === "Set") return Array.from(o); if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return Skills_arrayLikeToArray(o, minLen); }
@@ -28332,6 +28328,9 @@ function Skills_arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
 
 
+
+
+gsapWithCSS.registerPlugin(ScrollTrigger.ScrollTrigger);
 var SkillCard = function SkillCard(_ref) {
   var category = _ref.category,
     skills = _ref.skills;
@@ -28340,23 +28339,61 @@ var SkillCard = function SkillCard(_ref) {
     isVisible = _useState2[0],
     setIsVisible = _useState2[1];
   var skillsCardRef = (0,react.useRef)(null);
-  var toggleSkillsCardVisibility = (0,react.useCallback)(function (isVisible) {
-    setIsVisible(isVisible);
-  }, []);
   var checkIsVisible = (0,react.useCallback)(function () {
     if (!skillsCardRef.current) return;
     var isSkillsCardVisible = elementVisibilityCheck(skillsCardRef.current, 1);
     if (isSkillsCardVisible) {
-      toggleSkillsCardVisibility(true);
+      setIsVisible(true);
+      window.removeEventListener("scroll", checkIsVisible);
     }
-  }, [toggleSkillsCardVisibility]);
+  }, []);
   (0,react.useEffect)(function () {
-    checkIsVisible();
-    window.addEventListener('scroll', checkIsVisible);
-    return function () {
-      return window.removeEventListener('scroll', checkIsVisible);
+    if (!skillsCardRef.current) return;
+    var observerOptions = {
+      root: null,
+      rootMargin: "0px",
+      threshold: 0.8 // Change this value as per your requirement
     };
-  }, [checkIsVisible]);
+
+    var observer = new IntersectionObserver(function (_ref2) {
+      var _ref3 = Skills_slicedToArray(_ref2, 1),
+        entry = _ref3[0];
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+        observer.unobserve(entry.target);
+      }
+    }, observerOptions);
+    observer.observe(skillsCardRef.current);
+    return function () {
+      return observer.disconnect();
+    };
+  }, []);
+  (0,react.useEffect)(function () {
+    if (!skillsCardRef.current || !isVisible) return;
+    var skillsItems = skillsCardRef.current.querySelectorAll(".".concat(Skills_module.skillsCard__skills__item));
+    if (!skillsItems) return;
+    gsapWithCSS.set(skillsItems, {
+      y: -50,
+      scaleX: 0,
+      scaleY: 0,
+      opacity: 0
+    });
+    var timeline = gsapWithCSS.timeline();
+    timeline.to(skillsItems, {
+      duration: 0.3,
+      y: "0%",
+      scaleX: 1,
+      scaleY: 1,
+      opacity: 1,
+      color: "#384347",
+      stagger: 0.1,
+      className: classnames_default()(Skills_module.skillsCard__skills__item, Skills_module.skillsCard__skills__item__active),
+      ease: "power3.out"
+    });
+    return function () {
+      timeline.kill();
+    };
+  }, [isVisible]);
   return /*#__PURE__*/(0,jsx_runtime.jsxs)("div", {
     className: Skills_module.skillsCard,
     children: [/*#__PURE__*/(0,jsx_runtime.jsx)(Emergence_Emergence, {
@@ -28366,15 +28403,11 @@ var SkillCard = function SkillCard(_ref) {
       })
     }), /*#__PURE__*/(0,jsx_runtime.jsx)(Emergence_Emergence, {
       children: /*#__PURE__*/(0,jsx_runtime.jsx)("div", {
-        className: classnames_default()(Skills_module.skillsCard__skills, Skills_defineProperty({}, Skills_module.skillsCard__skills__visible, isVisible)),
+        className: Skills_module.skillsCard__skills,
         ref: skillsCardRef,
-        children: skills.map(function (skill, idx) {
+        children: skills.map(function (skill) {
           return /*#__PURE__*/(0,jsx_runtime.jsx)("p", {
             className: Skills_module.skillsCard__skills__item,
-            style: {
-              transitionDelay: "".concat(idx * 0.1, "s"),
-              animationDelay: "".concat(idx * 0.1, "s")
-            },
             children: skill
           }, skill);
         })
@@ -28390,17 +28423,17 @@ var Skills = function Skills() {
         title: "Skills"
       })
     }), /*#__PURE__*/(0,jsx_runtime.jsx)(SkillCard, {
-      category: 'CORE',
-      skills: ['JavaScript', 'TypeScript', 'HTML', 'CSS', 'SASS', 'GIT', 'REST API', 'DRY', 'KISS', 'Figma']
+      category: "CORE",
+      skills: ["JavaScript", "TypeScript", "HTML", "CSS", "SASS", "GIT", "REST API", "DRY", "KISS", "Figma"]
     }), /*#__PURE__*/(0,jsx_runtime.jsx)(SkillCard, {
-      category: 'Frontend',
-      skills: ['NextJS', 'React', 'Redux-toolkit', 'React-Router', 'React-Query', 'Motion', 'GSAP', 'WebSockets']
+      category: "Frontend",
+      skills: ["NextJS", "React", "Redux-toolkit", "React-Router", "React-Query", "Motion", "GSAP", "WebSockets"]
     }), /*#__PURE__*/(0,jsx_runtime.jsx)(SkillCard, {
-      category: 'Backend',
-      skills: ['NodeJS', 'NestJs']
+      category: "Backend",
+      skills: ["NodeJS", "NestJs"]
     }), /*#__PURE__*/(0,jsx_runtime.jsx)(SkillCard, {
-      category: 'Headless CMS',
-      skills: ['Directus', 'Strapi']
+      category: "Headless CMS",
+      skills: ["Directus", "Strapi"]
     })]
   });
 };
