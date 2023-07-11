@@ -24,32 +24,27 @@
     @include flexbox(row, flex-start, flex-start, wrap);
     gap: 10px;
 
-    &__visible {
-      & .skillsCard__skills__item {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-        animation: changeColor 1s ease-in-out both;
-        
-        @keyframes changeColor {
-          0% {
-            color: $blue-color
-          }
-          100% {
-            color: $lightened-black-color;
-          }
-        }
-      }
-    }
-
     &__item {
       @include font-mini;
       font-weight: bold;
-      color: $lightened-black-color;
       border-bottom: 1px solid #a9a9a9;
       padding: 5px 8px;
-      transition: 300ms ease-in-out;
+      color: $blue-color;
+      transform: translate(0, -50px) scale(0, 0);
       opacity: 0;
-      transform: translateY(-100%) scale(0);   
+      
+      &__active {
+          animation: changeColor 1s ease-in-out both;
+          
+          @keyframes changeColor {
+            0% {
+              color: $blue-color
+            }
+            100% {
+              color: $lightened-black-color;
+            }
+          }
+      }
     }
   }
 }
