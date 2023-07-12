@@ -2,6 +2,7 @@ import styles from "./TextReveral.module.scss";
 import { gsap } from "gsap";
 import { ITextReveralProps } from "./TextReveral.props";
 import { useEffect, useRef } from "react";
+import React from "react";
 
 const TextReveral = ({
   text,
@@ -51,17 +52,20 @@ const TextReveral = ({
 
   return (
     <div className={styles.reveral} ref={textRef}>
-      {text.split(" ").map((word, idx) => (
-        <>
-          <span className={styles.word} key={`word${idx}`}>
-            {word.split("").map((char, idx) => (
-              <span className={styles.char} key={`char${idx}`}>
+      {text.split(" ").map((word, wordIdx) => (
+        <React.Fragment key={`${word}${wordIdx}`}>
+          <span className={styles.word} key={`${word}${wordIdx}-${wordIdx}`}>
+            {word.split("").map((char, charIdx) => (
+              <span
+                className={styles.char}
+                key={`${char}${charIdx}-${charIdx}`}
+              >
                 {char}
               </span>
             ))}
           </span>
-          {idx < text.split(" ").length - 1 && <>&nbsp;</>}
-        </>
+          {wordIdx < text.split(" ").length - 1 && <>&nbsp;</>}
+        </React.Fragment>
       ))}
     </div>
   );
